@@ -1,0 +1,26 @@
+if not getgenv().CameraSubjectSpoof then
+    getgenv().CameraSubjectSpoof = true
+    local function targetScript()
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        if not char then return nil end
+        local handler = char:FindFirstChild("CharacterHandler")
+        if not handler then return nil end
+        return handler:FindFirstChild("Client")
+    end
+    local function currentCamera()
+        return workspace.CurrentCamera
+    end
+    local mt = getrawmetatable(game)
+    setreadonly(mt, false)
+    local oldNewIndex = mt.__newindex
+    mt.__newindex = newcclosure(function(self, key, value)
+        if self == currentCamera() and key == "CameraSubject" then
+            local caller = getcallingscript()
+            if caller == targetScript() then
+                return
+            end
+        end
+        return oldNewIndex(self, key, value)
+    end)
+end
