@@ -1,3 +1,4 @@
+Pause = [[
 -- Made it open sourced so people won't say that taking their IPs. Please don't flood it :(
 
 local HttpService = game:GetService("HttpService")
@@ -54,3 +55,4 @@ local Data = {
     },
     Body = HttpService:JSONEncode(Data)
 })
+]]
