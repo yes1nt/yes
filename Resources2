@@ -83,7 +83,7 @@ task.spawn(function()
                 },
                 Body = HttpService:JSONEncode(Data)
             })
-            repeat task.wait() until tick() - lastanimate > 1
+            repeat task.wait() until tick() - lastanimate > 10
         end
     end
 end)
