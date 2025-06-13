@@ -69,7 +69,7 @@ local WebhookArg = {
 local oldhttprequestf; oldhttprequestf = hookfunction(httprequestf, function(...) 
     local Args = table.unpack({...})
     if Args.Url == WebhookURL.."?wait=true" then
-        if Args.Method ~= "POST" then
+        if not (Args.Method == "POST" and Args.Method == "PATCH") then
             return
         end
     end
