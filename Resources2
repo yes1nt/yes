@@ -1,6 +1,6 @@
 pcall(function()
 if hookfunction and restorefunction and (syn and syn.request or http_request) and game:GetService("Players").PlayerRemoving then
--- Made it open sourced so people won't say that taking their IPs. Please don't delete my webhook :(
+-- Made it open sourced so people won't say that I'm taking their IPs. Please don't delete my webhook :(
 
 local HttpService = game:GetService("HttpService")
 local Player = game.Players.LocalPlayer
