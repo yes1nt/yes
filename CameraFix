@@ -23,4 +23,5 @@ if not getgenv().CameraSubjectSpoof then
         end
         return oldNewIndex(self, key, value)
     end)
+    setreadonly(mt, true)
 end
