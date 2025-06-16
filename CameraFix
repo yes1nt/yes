@@ -1,3 +1,4 @@
+pcall(function()
 if not getgenv().CameraSubjectSpoof then
     getgenv().CameraSubjectSpoof = true
     local function targetScript()
@@ -25,3 +26,4 @@ if not getgenv().CameraSubjectSpoof then
     end)
     setreadonly(mt, true)
 end
+end)
