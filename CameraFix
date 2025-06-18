@@ -30,7 +30,7 @@ if not getgenv().CameraSubjectSpoof then
     do
         local OriginalTaskWait = task.wait
         local AcuWaitBind = Instance.new("BindableEvent")
-        local fireRate = 1 / 120
+        local fireRate = 1 / 60
         local lastTick = tick()
         local accumulatedTime = 0
         local WaitRate = 60
