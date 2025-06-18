@@ -27,6 +27,7 @@ if not getgenv().CameraSubjectSpoof then
     setreadonly(mt, true)
 
     -- Custom task.wait() for smoother gameplay lol
+local edit = [[ nvm it sucked and made me lag
     do
         local OriginalTaskWait = task.wait
         local AcuWaitBind = Instance.new("BindableEvent")
@@ -72,5 +73,6 @@ if not getgenv().CameraSubjectSpoof then
         end
         OriginalTaskWait = hookfunction(task.wait, MegaWait)
     end
+]]
 end
 end)
