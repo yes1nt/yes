@@ -9,16 +9,19 @@
 --[[
     GUIDE
 
-    local Notify = loadstring(game:HttpGet("LINK_HERE"))()()
+    local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/Notification%20System"))()
 
     format:
-    Notify.Type(Title, Caption, Duration)
+    Notify.Type(Title, Caption, Duration, Callback)
 
     samples:
     Notify.Success("Success", "Hello world", 3)
     Notify.Error("Error", "Something went wrong", 3)
     Notify.Warning("Warning", "Be careful", 3)
     Notify.Info("Info", "Notification loaded", 3)
+    Notify.Success("Done", "Loaded", 3, function()
+        print("clicked notification")
+    end)
 
     -- remove all notifications
     Notify.ClearAll()
@@ -120,7 +123,7 @@ return function()
     -- ============================================
     local Notification = {}
     Notification.__index = Notification
-    function Notification.new(title, caption, lifespan, notifType)
+    function Notification.new(title, caption, lifespan, notifType, callback)
         EnsureUI()
         local self = setmetatable({}, Notification)
         self.Title = title or "Notification"
@@ -130,6 +133,7 @@ return function()
         self.IsDestroyed = false
         self.Connections = {}
         self.DismissThread = nil
+        self.Callback = callback
         local accentColor = CONFIG.Colors.Accent
         if self.Type == "Success" then accentColor = CONFIG.Colors.Success
         elseif self.Type == "Error" then accentColor = CONFIG.Colors.Error
@@ -271,8 +275,11 @@ return function()
             end)
         end)
         local clickConnection = self.Frame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or
                input.UserInputType == Enum.UserInputType.Touch then
+                if typeof(self.Callback) == "function" then
+                    task.spawn(self.Callback)
+                end
                 self:Dismiss()
             end
         end)
