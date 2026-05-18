@@ -1,0 +1,350 @@
+--[[
+    Made by FriedPotato
+
+    This script is free to use, edit, modify, and redistribute.
+    You do NOT need permission from me to change or use any part of this code.
+
+    Credits are appreciated but not required.
+]]
+--[[
+    GUIDE
+
+    local Notify = loadstring(game:HttpGet("LINK_HERE"))()()
+
+    format:
+    Notify.Type(Title, Caption, Duration)
+
+    samples:
+    Notify.Success("Success", "Hello world", 3)
+    Notify.Error("Error", "Something went wrong", 3)
+    Notify.Warning("Warning", "Be careful", 3)
+    Notify.Info("Info", "Notification loaded", 3)
+
+    -- remove all notifications
+    Notify.ClearAll()
+]]
+return function()
+    local TweenService = game:GetService("TweenService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+    -- ============================================
+    -- CONFIGURATION
+    -- ============================================
+    local CONFIG = {
+        MaxNotifications = 6,
+        DefaultLifespan = 3,
+        EntryDuration = 0.4,
+        ExitDuration = 0.35,
+        StaggerDelay = 0.08,
+        Padding = 8,
+        Position = UDim2.new(1, -20, 0, 20),
+        AnchorPoint = Vector2.new(1, 0),
+        Colors = {
+            Background = Color3.fromRGB(25, 25, 35),
+            Border = Color3.fromRGB(60, 60, 80),
+            Title = Color3.fromRGB(255, 255, 255),
+            Caption = Color3.fromRGB(180, 180, 200),
+            Accent = Color3.fromRGB(100, 150, 255),
+            Success = Color3.fromRGB(80, 200, 120),
+            Error = Color3.fromRGB(230, 80, 80),
+            Warning = Color3.fromRGB(230, 180, 60),
+            Info = Color3.fromRGB(100, 150, 255)
+        }
+    }
+    -- ============================================
+    -- STATE
+    -- ============================================
+    local ActiveNotifications = {}
+    local ScreenGui = nil
+    local NotificationContainer = nil
+    -- ============================================
+    -- HELPERS
+    -- ============================================
+    local function CreateInstance(className, props)
+        local instance = Instance.new(className)
+        for prop, value in pairs(props) do
+            instance[prop] = value
+        end
+        return instance
+    end
+    local function EnsureUI()
+        if ScreenGui and ScreenGui.Parent then return end
+        ScreenGui = CreateInstance("ScreenGui", {
+            Name = "PremiumNotifications",
+            Parent = PlayerGui,
+            ResetOnSpawn = false,
+            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+            DisplayOrder = 999
+        })
+        NotificationContainer = CreateInstance("Frame", {
+            Name = "Container",
+            Parent = ScreenGui,
+            Size = UDim2.new(0, 320, 1, -40),
+            Position = CONFIG.Position,
+            AnchorPoint = CONFIG.AnchorPoint,
+            BackgroundTransparency = 1,
+            ClipsDescendants = false
+        })
+        CreateInstance("UIListLayout", {
+            Parent = NotificationContainer,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Bottom,
+            HorizontalAlignment = Enum.HorizontalAlignment.Right,
+            Padding = UDim.new(0, CONFIG.Padding)
+        })
+        CreateInstance("UIPadding", {
+            Parent = NotificationContainer,
+            PaddingTop = UDim.new(0, 0),
+            PaddingRight = UDim.new(0, 0)
+        })
+    end
+    local function CleanupAll()
+        for _, notif in ipairs(ActiveNotifications) do
+            if notif.Frame then
+                notif.Frame:Destroy()
+            end
+            if notif.DismissThread then
+                task.cancel(notif.DismissThread)
+            end
+        end
+        ActiveNotifications = {}
+        if ScreenGui then
+            ScreenGui:Destroy()
+            ScreenGui = nil
+        end
+    end
+    LocalPlayer.CharacterRemoving:Connect(CleanupAll)
+    -- ============================================
+    -- NOTIFICATION CLASS
+    -- ============================================
+    local Notification = {}
+    Notification.__index = Notification
+    function Notification.new(title, caption, lifespan, notifType)
+        EnsureUI()
+        local self = setmetatable({}, Notification)
+        self.Title = title or "Notification"
+        self.Caption = caption or ""
+        self.Lifespan = lifespan or CONFIG.DefaultLifespan
+        self.Type = notifType or "Info"
+        self.IsDestroyed = false
+        self.Connections = {}
+        self.DismissThread = nil
+        local accentColor = CONFIG.Colors.Accent
+        if self.Type == "Success" then accentColor = CONFIG.Colors.Success
+        elseif self.Type == "Error" then accentColor = CONFIG.Colors.Error
+        elseif self.Type == "Warning" then accentColor = CONFIG.Colors.Warning
+        end
+        -- ============================================
+        -- BUILD UI
+        -- ============================================
+        self.Frame = CreateInstance("Frame", {
+            Name = "Notification",
+            Parent = NotificationContainer,
+            Size = UDim2.new(1, 0, 0, 0),
+            BackgroundColor3 = CONFIG.Colors.Background,
+            BackgroundTransparency = 0.1,
+            BorderSizePixel = 0,
+            AutomaticSize = Enum.AutomaticSize.Y,
+            ClipsDescendants = true,
+            LayoutOrder = #ActiveNotifications
+        })
+        CreateInstance("UICorner", {
+            Parent = self.Frame,
+            CornerRadius = UDim.new(0, 10)
+        })
+        CreateInstance("UIStroke", {
+            Parent = self.Frame,
+            Color = accentColor,
+            Thickness = 1.5,
+            Transparency = 0.3
+        })
+        CreateInstance("ImageLabel", {
+            Name = "Shadow",
+            Parent = self.Frame,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 4),
+            Size = UDim2.new(1, 20, 1, 20),
+            BackgroundTransparency = 1,
+            Image = "rbxassetid://1316045217",
+            ImageColor3 = Color3.new(0, 0, 0),
+            ImageTransparency = 0.6,
+            ScaleType = Enum.ScaleType.Slice,
+            SliceCenter = Rect.new(10, 10, 118, 118),
+            ZIndex = -1
+        })
+        local content = CreateInstance("Frame", {
+            Name = "Content",
+            Parent = self.Frame,
+            Size = UDim2.new(1, -20, 0, 0),
+            Position = UDim2.new(0, 10, 0, 0),
+            BackgroundTransparency = 1,
+            AutomaticSize = Enum.AutomaticSize.Y
+        })
+        CreateInstance("UIPadding", {
+            Parent = content,
+            PaddingTop = UDim.new(0, 12),
+            PaddingBottom = UDim.new(0, 12),
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8)
+        })
+        local accentBar = CreateInstance("Frame", {
+            Name = "AccentBar",
+            Parent = self.Frame,
+            Size = UDim2.new(0, 3, 1, -16),
+            Position = UDim2.new(0, 6, 0, 8),
+            BackgroundColor3 = accentColor,
+            BorderSizePixel = 0
+        })
+        CreateInstance("UICorner", {
+            Parent = accentBar,
+            CornerRadius = UDim.new(1, 0)
+        })
+        self.TitleLabel = CreateInstance("TextLabel", {
+            Name = "Title",
+            Parent = content,
+            Size = UDim2.new(1, -20, 0, 0),
+            Position = UDim2.new(0, 8, 0, 0),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.GothamBold,
+            Text = self.Title,
+            TextColor3 = CONFIG.Colors.Title,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = true,
+            AutomaticSize = Enum.AutomaticSize.Y,
+            RichText = true
+        })
+        if self.Caption ~= "" then
+            self.CaptionLabel = CreateInstance("TextLabel", {
+                Name = "Caption",
+                Parent = content,
+                Size = UDim2.new(1, -20, 0, 0),
+                Position = UDim2.new(0, 8, 0, 0),
+                BackgroundTransparency = 1,
+                Font = Enum.Font.Gotham,
+                Text = self.Caption,
+                TextColor3 = CONFIG.Colors.Caption,
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextWrapped = true,
+                AutomaticSize = Enum.AutomaticSize.Y,
+                RichText = true
+            })
+        end
+        self.ProgressBar = CreateInstance("Frame", {
+            Name = "ProgressBar",
+            Parent = self.Frame,
+            Size = UDim2.new(1, 0, 0, 2),
+            Position = UDim2.new(0, 0, 1, -2),
+            BackgroundColor3 = accentColor,
+            BorderSizePixel = 0,
+            BackgroundTransparency = 0.2
+        })
+        -- ============================================
+        -- ANIMATIONS
+        -- ============================================
+        self.Frame.Position = UDim2.new(1, 50, 0, 0)
+        self.Frame.BackgroundTransparency = 1
+        self.Frame.Size = UDim2.new(1, 0, 0, 0)
+        local stagger = (#ActiveNotifications) * CONFIG.StaggerDelay
+        task.delay(stagger, function()
+            if self.IsDestroyed then return end
+            TweenService:Create(
+                self.Frame,
+                TweenInfo.new(CONFIG.EntryDuration, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+                {
+                    Position = UDim2.new(0, 0, 0, 0),
+                    BackgroundTransparency = 0.1
+                }
+            ):Play()
+            task.delay(CONFIG.EntryDuration, function()
+                if self.IsDestroyed then return end
+                TweenService:Create(
+                    self.ProgressBar,
+                    TweenInfo.new(self.Lifespan, Enum.EasingStyle.Linear),
+                    { Size = UDim2.new(0, 0, 0, 2) }
+                ):Play()
+            end)
+            self.DismissThread = task.delay(self.Lifespan + CONFIG.EntryDuration, function()
+                self:Dismiss()
+            end)
+        end)
+        local clickConnection = self.Frame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or 
+               input.UserInputType == Enum.UserInputType.Touch then
+                self:Dismiss()
+            end
+        end)
+        table.insert(self.Connections, clickConnection)
+        table.insert(ActiveNotifications, self)
+        if #ActiveNotifications > CONFIG.MaxNotifications then
+            ActiveNotifications[1]:Dismiss()
+        end
+        return self
+    end
+    function Notification:Dismiss()
+        if self.IsDestroyed then return end
+        self.IsDestroyed = true
+        if self.DismissThread then
+            task.cancel(self.DismissThread)
+            self.DismissThread = nil
+        end
+        for i, notif in ipairs(ActiveNotifications) do
+            if notif == self then
+                table.remove(ActiveNotifications, i)
+                break
+            end
+        end
+        local exitTween = TweenService:Create(
+            self.Frame,
+            TweenInfo.new(CONFIG.ExitDuration, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+            {
+                Position = UDim2.new(1, 50, 0, 0),
+                BackgroundTransparency = 1
+            }
+        )
+        exitTween:Play()
+        exitTween.Completed:Connect(function()
+            self:Destroy()
+        end)
+    end
+    function Notification:Destroy()
+        for _, conn in ipairs(self.Connections) do
+            if typeof(conn) == "RBXScriptConnection" then
+                conn:Disconnect()
+            end
+        end
+        self.Connections = {}
+        if self.Frame then
+            self.Frame:Destroy()
+            self.Frame = nil
+        end
+        self.TitleLabel = nil
+        self.CaptionLabel = nil
+        self.ProgressBar = nil
+    end
+    -- ============================================
+    -- PUBLIC API
+    -- ============================================
+    local PremiumNotify = {}
+    function PremiumNotify.Notify(title, caption, lifespan, notifType)
+        return Notification.new(title, caption, lifespan, notifType)
+    end
+    function PremiumNotify.Success(title, caption, lifespan)
+        return Notification.new(title, caption, lifespan, "Success")
+    end
+    function PremiumNotify.Error(title, caption, lifespan)
+        return Notification.new(title, caption, lifespan, "Error")
+    end
+    function PremiumNotify.Warning(title, caption, lifespan)
+        return Notification.new(title, caption, lifespan, "Warning")
+    end
+    function PremiumNotify.Info(title, caption, lifespan)
+        return Notification.new(title, caption, lifespan, "Info")
+    end
+    function PremiumNotify.ClearAll()
+        CleanupAll()
+    end
+    return PremiumNotify
+end
