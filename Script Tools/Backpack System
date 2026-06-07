@@ -1,0 +1,585 @@
+--[[
+    Made by FriedPotato
+
+    This script is free to use, edit, modify, and redistribute.
+    You do NOT need permission from me to change or use any part of this code.
+
+    Credits are appreciated but not required.
+]]
+--[[
+    GUIDE
+
+    local ScreenGui, API = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/Backpack%20System"))()
+
+    sample:
+    ScreenGui:Destroy() -- (will revert backpack)
+    API.SetEnabled(bool) -- (will hide/show backpack)
+    API.GetEnabled() -- (will return state)
+    API.UnequipSlot(slotIndex) -- (is just there to be modified more easily)
+    API.EquipSlot(slotIndex) -- (is also there to be modified more easily)
+
+]]
+
+local API = {}
+--// BACKPACK DISABLE
+game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+--// SERVICES
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+--// CONFIGURATION
+local CONFIG = {
+    SlotsPerPage = 5,
+    SlotSize = 45,
+    SlotPadding = 6,
+    IconSize = 0.85,
+    NavButtonSize = 35,
+    NavButtonPadding = 8
+}
+--// DATA
+local BackpackData = {
+    AllItems = {},
+    EquippedTools = {},
+    CurrentPage = 1
+}
+local ToolConnections = {}
+local EventConnections = {}
+--// GUI SETUP
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "PagedBackpack"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.DisplayOrder = math.huge
+ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+-- Add this to your API table inside ReplaceBackpack():
+function API.SetEnabled(enabled)
+    ScreenGui.Enabled = enabled
+end
+function API.GetEnabled()
+    return ScreenGui.Enabled
+end
+-- Calculate fixed dimensions
+local hotbarWidth = CONFIG.SlotsPerPage * (CONFIG.SlotSize + CONFIG.SlotPadding) + CONFIG.SlotPadding
+local hotbarHeight = CONFIG.SlotSize + 2 * CONFIG.SlotPadding
+local totalWidth = hotbarWidth + 2 * (CONFIG.NavButtonSize + CONFIG.NavButtonPadding)
+local totalHeight = math.max(hotbarHeight, CONFIG.NavButtonSize)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, totalWidth, 0, totalHeight)
+MainFrame.Position = UDim2.new(0.5, -totalWidth / 2, 1, -totalHeight - 20)
+MainFrame.BackgroundTransparency = 1
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+local PrevButton = Instance.new("TextButton")
+PrevButton.Name = "PrevButton"
+PrevButton.Size = UDim2.new(0, CONFIG.NavButtonSize, 0, CONFIG.NavButtonSize)
+PrevButton.Position = UDim2.new(0, 0, 0.5, -CONFIG.NavButtonSize / 2)
+PrevButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+PrevButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+PrevButton.Text = "<"
+PrevButton.TextSize = 20
+PrevButton.Font = Enum.Font.GothamBold
+PrevButton.AutoButtonColor = true
+PrevButton.Parent = MainFrame
+local PrevCorner = Instance.new("UICorner")
+PrevCorner.CornerRadius = UDim.new(0, 6)
+PrevCorner.Parent = PrevButton
+local PrevStroke = Instance.new("UIStroke")
+PrevStroke.Color = Color3.fromRGB(100, 100, 110)
+PrevStroke.Thickness = 1
+PrevStroke.Parent = PrevButton
+local HotbarFrame = Instance.new("Frame")
+HotbarFrame.Name = "Hotbar"
+HotbarFrame.Size = UDim2.new(0, hotbarWidth, 0, hotbarHeight)
+HotbarFrame.Position = UDim2.new(0, CONFIG.NavButtonSize + CONFIG.NavButtonPadding, 0, (totalHeight - hotbarHeight) / 2)
+HotbarFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+HotbarFrame.BackgroundTransparency = 0.2
+HotbarFrame.BorderSizePixel = 0
+HotbarFrame.ClipsDescendants = true
+HotbarFrame.Parent = MainFrame
+local HotbarCorner = Instance.new("UICorner")
+HotbarCorner.CornerRadius = UDim.new(0, 8)
+HotbarCorner.Parent = HotbarFrame
+local HotbarStroke = Instance.new("UIStroke")
+HotbarStroke.Color = Color3.fromRGB(80, 80, 90)
+HotbarStroke.Thickness = 1.5
+HotbarStroke.Parent = HotbarFrame
+local HotbarLayout = Instance.new("UIListLayout")
+HotbarLayout.FillDirection = Enum.FillDirection.Horizontal
+HotbarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+HotbarLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+HotbarLayout.Padding = UDim.new(0, CONFIG.SlotPadding)
+HotbarLayout.Parent = HotbarFrame
+local NextButton = Instance.new("TextButton")
+NextButton.Name = "NextButton"
+NextButton.Size = UDim2.new(0, CONFIG.NavButtonSize, 0, CONFIG.NavButtonSize)
+NextButton.Position = UDim2.new(1, -CONFIG.NavButtonSize, 0.5, -CONFIG.NavButtonSize / 2)
+NextButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+NextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+NextButton.Text = ">"
+NextButton.TextSize = 20
+NextButton.Font = Enum.Font.GothamBold
+NextButton.AutoButtonColor = true
+NextButton.Parent = MainFrame
+local NextCorner = Instance.new("UICorner")
+NextCorner.CornerRadius = UDim.new(0, 6)
+NextCorner.Parent = NextButton
+local NextStroke = Instance.new("UIStroke")
+NextStroke.Color = Color3.fromRGB(100, 100, 110)
+NextStroke.Thickness = 1
+NextStroke.Parent = NextButton
+local PageBackground = Instance.new("Frame")
+PageBackground.Name = "PageBackground"
+PageBackground.Size = UDim2.new(0, 60, 0, 20)
+PageBackground.Position = UDim2.new(0.5, -30, 0, -22)
+PageBackground.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+PageBackground.BorderSizePixel = 0
+PageBackground.Parent = MainFrame
+local PageBgCorner = Instance.new("UICorner")
+PageBgCorner.CornerRadius = UDim.new(0, 6)
+PageBgCorner.Parent = PageBackground
+local PageBgStroke = Instance.new("UIStroke")
+PageBgStroke.Color = Color3.fromRGB(80, 80, 90)
+PageBgStroke.Thickness = 1
+PageBgStroke.Parent = PageBackground
+local PageLabel = Instance.new("TextLabel")
+PageLabel.Name = "PageLabel"
+PageLabel.Size = UDim2.fromScale(1, 1)
+PageLabel.Position = UDim2.fromScale(0, 0)
+PageLabel.BackgroundTransparency = 1
+PageLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+PageLabel.TextSize = 12
+PageLabel.Font = Enum.Font.Gotham
+PageLabel.Text = "1 / 1"
+PageLabel.Parent = PageBackground
+local HotbarSlots = {}
+--// ============================================================
+--// HELPERS
+--// ============================================================
+local function GetTotalPages()
+    local count = #BackpackData.AllItems
+    if count == 0 then return 1 end
+    return math.ceil(count / CONFIG.SlotsPerPage)
+end
+local function GetItemsOnPage(pageNum)
+    local startIdx = (pageNum - 1) * CONFIG.SlotsPerPage + 1
+    local endIdx = math.min(pageNum * CONFIG.SlotsPerPage, #BackpackData.AllItems)
+    local items = {}
+    for i = startIdx, endIdx do
+        table.insert(items, BackpackData.AllItems[i])
+    end
+    return items
+end
+local function GetGlobalIndex(slotIndex)
+    return (BackpackData.CurrentPage - 1) * CONFIG.SlotsPerPage + slotIndex
+end
+local function IsToolEquipped(tool)
+    return tool ~= nil and BackpackData.EquippedTools[tool] == true
+end
+--// ============================================================
+--// UI
+--// ============================================================
+local function UpdateNavButtons()
+    local totalPages = GetTotalPages()
+    if BackpackData.CurrentPage <= 1 then
+        PrevButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+        PrevButton.TextColor3 = Color3.fromRGB(120, 120, 120)
+        PrevButton.Active = false
+    else
+        PrevButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        PrevButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        PrevButton.Active = true
+    end
+    if BackpackData.CurrentPage >= totalPages then
+        NextButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+        NextButton.TextColor3 = Color3.fromRGB(120, 120, 120)
+        NextButton.Active = false
+    else
+        NextButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        NextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        NextButton.Active = true
+    end
+    PageLabel.Text = BackpackData.CurrentPage .. " / " .. totalPages
+end
+local function Refresh()
+    local itemCount = #BackpackData.AllItems
+    if itemCount == 0 then
+        MainFrame.Visible = false
+        return
+    else
+        MainFrame.Visible = true
+    end
+    for i = 1, CONFIG.SlotsPerPage do
+        local slot = HotbarSlots[i]
+        local icon = slot:FindFirstChild("Icon")
+        local count = slot:FindFirstChild("Count")
+        local equipped = slot:FindFirstChild("Equipped")
+        icon.Image = ""
+        count.Text = ""
+        count.Visible = false
+        equipped.BackgroundTransparency = 1
+        slot.Visible = false
+    end
+    local pageItems = GetItemsOnPage(BackpackData.CurrentPage)
+    for i, item in ipairs(pageItems) do
+        local slot = HotbarSlots[i]
+        if not slot then continue end
+        slot.Visible = true
+        local icon = slot:FindFirstChild("Icon")
+        local count = slot:FindFirstChild("Count")
+        local equipped = slot:FindFirstChild("Equipped")
+        icon.Image = item.Icon or ""
+        if item.Count and item.Count > 1 then
+            count.Text = tostring(item.Count)
+            count.Visible = true
+        end
+        if item.Tool and BackpackData.EquippedTools[item.Tool] then
+            equipped.BackgroundTransparency = 0.3
+        end
+    end
+    UpdateNavButtons()
+end
+--// ============================================================
+--// INVENTORY
+--// ============================================================
+local function RemoveItem(toolInstance)
+    local foundIndex = nil
+    for i, item in ipairs(BackpackData.AllItems) do
+        if item.Tool == toolInstance then
+            foundIndex = i
+            break
+        end
+    end
+    if not foundIndex then return false end
+    table.remove(BackpackData.AllItems, foundIndex)
+    BackpackData.EquippedTools[toolInstance] = nil
+    if ToolConnections[toolInstance] then
+        ToolConnections[toolInstance]:Disconnect()
+        ToolConnections[toolInstance] = nil
+    end
+    local totalPages = GetTotalPages()
+    if BackpackData.CurrentPage > totalPages and totalPages > 0 then
+        BackpackData.CurrentPage = totalPages
+    end
+    if BackpackData.CurrentPage < 1 then
+        BackpackData.CurrentPage = 1
+    end
+    Refresh()
+    return true
+end
+local function AddItem(toolInstance)
+    for _, item in ipairs(BackpackData.AllItems) do
+        if item.Tool == toolInstance then
+            return true
+        end
+    end
+    table.insert(BackpackData.AllItems, {
+        Name = toolInstance.Name,
+        Icon = toolInstance.TextureId,
+        Tool = toolInstance,
+        Count = 1
+    })
+    ToolConnections[toolInstance] = toolInstance.AncestryChanged:Connect(function(_, newParent)
+        if newParent == nil then
+            RemoveItem(toolInstance)
+        elseif newParent ~= Character and newParent ~= Player.Backpack then
+            RemoveItem(toolInstance)
+        elseif newParent == Character then
+            BackpackData.EquippedTools[toolInstance] = true
+            Refresh()
+        elseif newParent == Player.Backpack then
+            BackpackData.EquippedTools[toolInstance] = nil
+            Refresh()
+        end
+    end)
+    Refresh()
+    return true
+end
+--// ============================================================
+--// EQUIP SYSTEM
+--// ============================================================
+function API.EquipSlot(slotIndex)
+    local globalIndex = GetGlobalIndex(slotIndex)
+    local item = BackpackData.AllItems[globalIndex]
+    if not item or not item.Tool then return end
+    for _, other in ipairs(BackpackData.AllItems) do
+        if other.Tool ~= item.Tool and other.Tool.Parent == Character then
+            other.Tool.Parent = Player.Backpack
+            BackpackData.EquippedTools[other.Tool] = nil
+        end
+    end
+    item.Tool.Parent = Character
+    BackpackData.EquippedTools[item.Tool] = true
+    Refresh()
+end
+function API.UnequipSlot(slotIndex)
+    local globalIndex = GetGlobalIndex(slotIndex)
+    local item = BackpackData.AllItems[globalIndex]
+    if not item or not item.Tool then return end
+    if item.Tool.Parent == Character then
+        item.Tool.Parent = Player.Backpack
+    end
+    BackpackData.EquippedTools[item.Tool] = nil
+    Refresh()
+end
+local function UseSlot(slotIndex)
+    local globalIndex = GetGlobalIndex(slotIndex)
+    local item = BackpackData.AllItems[globalIndex]
+    if not item or not item.Tool then return end
+    if IsToolEquipped(item.Tool) and item.Tool.Parent == Character then
+        API.UnequipSlot(slotIndex)
+        return
+    end
+    API.EquipSlot(slotIndex)
+end
+--// ============================================================
+--// SLOT CREATION
+--// ============================================================
+local function CreateSlot(slotIndex)
+    local Slot = Instance.new("Frame")
+    Slot.Name = "Slot_" .. slotIndex
+    Slot.Size = UDim2.new(0, CONFIG.SlotSize, 0, CONFIG.SlotSize)
+    Slot.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    Slot.BackgroundTransparency = 0.4
+    Slot.BorderSizePixel = 0
+    Slot.Parent = HotbarFrame
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Slot
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(100, 100, 110)
+    Stroke.Thickness = 1
+    Stroke.Parent = Slot
+    local Icon = Instance.new("ImageLabel")
+    Icon.Name = "Icon"
+    Icon.Size = UDim2.new(CONFIG.IconSize, 0, CONFIG.IconSize, 0)
+    Icon.Position = UDim2.new((1 - CONFIG.IconSize) / 2, 0, (1 - CONFIG.IconSize) / 2, 0)
+    Icon.BackgroundTransparency = 1
+    Icon.Image = ""
+    Icon.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    Icon.Parent = Slot
+    local Count = Instance.new("TextLabel")
+    Count.Name = "Count"
+    Count.Size = UDim2.new(0, 18, 0, 18)
+    Count.Position = UDim2.new(1, -20, 1, -20)
+    Count.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    Count.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Count.TextSize = 11
+    Count.Font = Enum.Font.GothamBold
+    Count.Text = ""
+    Count.Visible = false
+    Count.Parent = Slot
+    local CountCorner = Instance.new("UICorner")
+    CountCorner.CornerRadius = UDim.new(0, 4)
+    CountCorner.Parent = Count
+    local Keybind = Instance.new("TextLabel")
+    Keybind.Name = "Keybind"
+    Keybind.Size = UDim2.new(0, 16, 0, 16)
+    Keybind.Position = UDim2.new(0, 2, 0, 2)
+    Keybind.BackgroundColor3 = Color3.fromRGB(80, 80, 90)
+    Keybind.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Keybind.TextSize = 10
+    Keybind.Font = Enum.Font.GothamBold
+    Keybind.Text = tostring(slotIndex)
+    Keybind.Parent = Slot
+    local KeyCorner = Instance.new("UICorner")
+    KeyCorner.CornerRadius = UDim.new(0, 3)
+    KeyCorner.Parent = Keybind
+    local Equipped = Instance.new("Frame")
+    Equipped.Name = "Equipped"
+    Equipped.Size = UDim2.new(1, 4, 1, 4)
+    Equipped.Position = UDim2.new(0, -2, 0, -2)
+    Equipped.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+    Equipped.BackgroundTransparency = 1
+    Equipped.BorderSizePixel = 0
+    Equipped.ZIndex = 0
+    Equipped.Parent = Slot
+    local EqCorner = Instance.new("UICorner")
+    EqCorner.CornerRadius = UDim.new(0, 8)
+    EqCorner.Parent = Equipped
+    local conn = Slot.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            UseSlot(slotIndex)
+        end
+    end)
+    table.insert(EventConnections, conn)
+    return Slot
+end
+--// ============================================================
+--// CREATE SLOTS
+--// ============================================================
+for i = 1, CONFIG.SlotsPerPage do
+    HotbarSlots[i] = CreateSlot(i)
+end
+--// ============================================================
+--// NAVIGATION CONNECTIONS
+--// ============================================================
+table.insert(EventConnections, PrevButton.MouseButton1Click:Connect(function()
+    if BackpackData.CurrentPage > 1 then
+        BackpackData.CurrentPage = BackpackData.CurrentPage - 1
+        Refresh()
+    end
+end))
+table.insert(EventConnections, NextButton.MouseButton1Click:Connect(function()
+    if BackpackData.CurrentPage < GetTotalPages() then
+        BackpackData.CurrentPage = BackpackData.CurrentPage + 1
+        Refresh()
+    end
+end))
+--// ============================================================
+--// KEYBOARD INPUT
+--// ============================================================
+local KeyMap = {
+    [Enum.KeyCode.One] = 1,
+    [Enum.KeyCode.Two] = 2,
+    [Enum.KeyCode.Three] = 3,
+    [Enum.KeyCode.Four] = 4,
+    [Enum.KeyCode.Five] = 5,
+    [Enum.KeyCode.Six] = 6,
+    [Enum.KeyCode.Seven] = 7,
+    [Enum.KeyCode.Eight] = 8,
+    [Enum.KeyCode.Nine] = 9,
+    [Enum.KeyCode.Zero] = 10
+}
+table.insert(EventConnections, UIS.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    local num = KeyMap[input.KeyCode]
+    if not num then return end
+    if num > CONFIG.SlotsPerPage then return end
+    UseSlot(num)
+end))
+--// ============================================================
+--// TOOL PICKUP
+--// ============================================================
+table.insert(EventConnections, Player.Backpack.ChildAdded:Connect(function(child)
+    if child:IsA("Tool") then
+        task.wait()
+        AddItem(child)
+    end
+end))
+for _, tool in ipairs(Player.Backpack:GetChildren()) do
+    if tool:IsA("Tool") then
+        AddItem(tool)
+    end
+end
+--// ============================================================
+--// CHARACTER RESET
+--// ============================================================
+table.insert(EventConnections, Player.CharacterAdded:Connect(function(char)
+    Character = char
+    Humanoid = char:WaitForChild("Humanoid")
+    BackpackData.EquippedTools = {}
+    BackpackData.CurrentPage = 1
+    for tool, conn in pairs(ToolConnections) do
+        conn:Disconnect()
+    end
+    ToolConnections = {}
+    BackpackData.AllItems = {}
+    Refresh()
+    for _, tool in ipairs(Player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            AddItem(tool)
+        end
+    end
+end))
+--// ============================================================
+--// TOP LEFT TOGGLE
+--// ============================================================
+pcall(function()
+    game:GetService("CoreGui").TopBarApp.TopBarApp.UnibarLeftFrame.UnibarMenu["2"]["2"].Size = UDim2.new(1.5, 0, 1, 0)
+    local Parent = game:GetService("CoreGui").TopBarApp.TopBarApp.UnibarLeftFrame.UnibarMenu["2"]["3"]
+    local Leftmost, Rightmost, Closest
+    local ClosestDistance = math.huge
+    for _, v in ipairs(Parent:GetChildren()) do
+        if v:IsA("GuiObject") then
+            if not Leftmost or v.AbsolutePosition.X < Leftmost.AbsolutePosition.X then
+                Leftmost = v
+            end
+            if not Rightmost or v.AbsolutePosition.X > Rightmost.AbsolutePosition.X then
+                Rightmost = v
+            end
+        end
+    end
+    for _, v in ipairs(Parent:GetChildren()) do
+        if v:IsA("GuiObject") and v ~= Leftmost then
+            local Distance = v.AbsolutePosition.X - Leftmost.AbsolutePosition.X
+            if Distance > 0 and Distance < ClosestDistance then
+                ClosestDistance = Distance
+                Closest = v
+            end
+        end
+    end
+    local Clone
+    if Leftmost and Rightmost and Closest then
+        local Delta = Closest.Position - Leftmost.Position
+        Clone = Leftmost:Clone()
+        Clone.Name = "backpack_toggle"
+        Clone.Parent = Parent
+        Clone.Position = Rightmost.Position + Delta
+        for _, Child in ipairs(Clone:GetChildren()) do
+            Child:Destroy()
+        end
+        local Label = Instance.new("TextLabel")
+        Label.Name = "Backpack"
+        Label.BackgroundTransparency = 1
+        Label.AnchorPoint = Vector2.new(0.5, 0.5)
+        Label.Position = UDim2.fromScale(0.5, 0.5)
+        Label.Size = UDim2.fromScale(0.7, 0.7)
+        Label.Text = "🎒"
+        Label.TextScaled = true
+        Label.Font = Enum.Font.SourceSans
+        Label.Parent = Clone
+        local ClickOverlay = Instance.new("TextButton")
+        ClickOverlay.Name = "ClickOverlay"
+        ClickOverlay.Size = UDim2.new(1, 0, 1, 0)
+        ClickOverlay.BackgroundTransparency = 1
+        ClickOverlay.Text = ""
+        ClickOverlay.Parent = Clone
+    end
+    task.spawn(function()
+        repeat task.wait() until not API
+        Clone:Destroy()
+        game:GetService("CoreGui").TopBarApp.TopBarApp.UnibarLeftFrame.UnibarMenu["2"]["2"].Size = UDim2.new(1, 0, 1, 0)
+    end)
+end)
+--// ============================================================
+--// INITIAL REFRESH
+--// ============================================================
+Refresh()
+--// ============================================================
+--// CLEANUP
+--// ============================================================
+task.spawn(function()
+    repeat task.wait() until not API
+    pcall(function()
+        ScreenGui:Destroy()
+    end)
+end)
+table.insert(EventConnections, ScreenGui.AncestryChanged:Connect(function()
+    if not ScreenGui:IsDescendantOf(game) then
+        -- Disconnect all event connections
+        for _, conn in ipairs(EventConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
+        EventConnections = {}
+        -- Disconnect all tool connections
+        for tool, conn in pairs(ToolConnections) do
+            pcall(function() conn:Disconnect() end)
+        end
+        ToolConnections = {}
+        -- Deletes API
+        table.clear(API)
+        API = nil
+        -- Re-enable default backpack
+        pcall(function()
+            game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
+        end)
+        -- Clear data
+        BackpackData.AllItems = {}
+        BackpackData.EquippedTools = {}
+        BackpackData.CurrentPage = 1
+    end
+end))
+return ScreenGui, API
