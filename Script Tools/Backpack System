@@ -27,8 +27,12 @@ game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
+local function Character()
+    return Player.Character or Player.CharacterAdded:Wait()
+end
+local function Humanoid()
+    return Character():WaitForChild("Humanoid")
+end
 --// CONFIGURATION
 local CONFIG = {
     SlotsPerPage = 5,
@@ -39,7 +43,7 @@ local CONFIG = {
     NavButtonPadding = 8
 }
 --// DATA
-local BackpackData = {
+API.BackpackData = {
     AllItems = {},
     EquippedTools = {},
     CurrentPage = 1
@@ -159,31 +163,31 @@ local HotbarSlots = {}
 --// HELPERS
 --// ============================================================
 local function GetTotalPages()
-    local count = #BackpackData.AllItems
+    local count = #API.BackpackData.AllItems
     if count == 0 then return 1 end
     return math.ceil(count / CONFIG.SlotsPerPage)
 end
 local function GetItemsOnPage(pageNum)
     local startIdx = (pageNum - 1) * CONFIG.SlotsPerPage + 1
-    local endIdx = math.min(pageNum * CONFIG.SlotsPerPage, #BackpackData.AllItems)
+    local endIdx = math.min(pageNum * CONFIG.SlotsPerPage, #API.BackpackData.AllItems)
     local items = {}
     for i = startIdx, endIdx do
-        table.insert(items, BackpackData.AllItems[i])
+        table.insert(items, API.BackpackData.AllItems[i])
     end
     return items
 end
-local function GetGlobalIndex(slotIndex)
-    return (BackpackData.CurrentPage - 1) * CONFIG.SlotsPerPage + slotIndex
+function API.GetGlobalIndex(slotIndex)
+    return (API.BackpackData.CurrentPage - 1) * CONFIG.SlotsPerPage + slotIndex
 end
 local function IsToolEquipped(tool)
-    return tool ~= nil and BackpackData.EquippedTools[tool] == true
+    return tool ~= nil and API.BackpackData.EquippedTools[tool] == true
 end
 --// ============================================================
 --// UI
 --// ============================================================
 local function UpdateNavButtons()
     local totalPages = GetTotalPages()
-    if BackpackData.CurrentPage <= 1 then
+    if API.BackpackData.CurrentPage <= 1 then
         PrevButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
         PrevButton.TextColor3 = Color3.fromRGB(120, 120, 120)
         PrevButton.Active = false
@@ -192,7 +196,7 @@ local function UpdateNavButtons()
         PrevButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         PrevButton.Active = true
     end
-    if BackpackData.CurrentPage >= totalPages then
+    if API.BackpackData.CurrentPage >= totalPages then
         NextButton.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
         NextButton.TextColor3 = Color3.fromRGB(120, 120, 120)
         NextButton.Active = false
@@ -201,10 +205,10 @@ local function UpdateNavButtons()
         NextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         NextButton.Active = true
     end
-    PageLabel.Text = BackpackData.CurrentPage .. " / " .. totalPages
+    PageLabel.Text = API.BackpackData.CurrentPage .. " / " .. totalPages
 end
-local function Refresh()
-    local itemCount = #BackpackData.AllItems
+function API.Refresh()
+    local itemCount = #API.BackpackData.AllItems
     if itemCount == 0 then
         MainFrame.Visible = false
         return
@@ -222,7 +226,7 @@ local function Refresh()
         equipped.BackgroundTransparency = 1
         slot.Visible = false
     end
-    local pageItems = GetItemsOnPage(BackpackData.CurrentPage)
+    local pageItems = GetItemsOnPage(API.BackpackData.CurrentPage)
     for i, item in ipairs(pageItems) do
         local slot = HotbarSlots[i]
         if not slot then continue end
@@ -235,7 +239,7 @@ local function Refresh()
             count.Text = tostring(item.Count)
             count.Visible = true
         end
-        if item.Tool and BackpackData.EquippedTools[item.Tool] then
+        if item.Tool and API.BackpackData.EquippedTools[item.Tool] then
             equipped.BackgroundTransparency = 0.3
         end
     end
@@ -246,36 +250,36 @@ end
 --// ============================================================
 local function RemoveItem(toolInstance)
     local foundIndex = nil
-    for i, item in ipairs(BackpackData.AllItems) do
+    for i, item in ipairs(API.BackpackData.AllItems) do
         if item.Tool == toolInstance then
             foundIndex = i
             break
         end
     end
     if not foundIndex then return false end
-    table.remove(BackpackData.AllItems, foundIndex)
-    BackpackData.EquippedTools[toolInstance] = nil
+    table.remove(API.BackpackData.AllItems, foundIndex)
+    API.BackpackData.EquippedTools[toolInstance] = nil
     if ToolConnections[toolInstance] then
         ToolConnections[toolInstance]:Disconnect()
         ToolConnections[toolInstance] = nil
     end
     local totalPages = GetTotalPages()
-    if BackpackData.CurrentPage > totalPages and totalPages > 0 then
-        BackpackData.CurrentPage = totalPages
+    if API.BackpackData.CurrentPage > totalPages and totalPages > 0 then
+        API.BackpackData.CurrentPage = totalPages
     end
-    if BackpackData.CurrentPage < 1 then
-        BackpackData.CurrentPage = 1
+    if API.BackpackData.CurrentPage < 1 then
+        API.BackpackData.CurrentPage = 1
     end
-    Refresh()
+    API.Refresh()
     return true
 end
 local function AddItem(toolInstance)
-    for _, item in ipairs(BackpackData.AllItems) do
+    for _, item in ipairs(API.BackpackData.AllItems) do
         if item.Tool == toolInstance then
             return true
         end
     end
-    table.insert(BackpackData.AllItems, {
+    table.insert(API.BackpackData.AllItems, {
         Name = toolInstance.Name,
         Icon = toolInstance.TextureId,
         Tool = toolInstance,
@@ -284,51 +288,55 @@ local function AddItem(toolInstance)
     ToolConnections[toolInstance] = toolInstance.AncestryChanged:Connect(function(_, newParent)
         if newParent == nil then
             RemoveItem(toolInstance)
-        elseif newParent ~= Character and newParent ~= Player.Backpack then
+        elseif newParent ~= Character() and newParent ~= Player.Backpack then
             RemoveItem(toolInstance)
-        elseif newParent == Character then
-            BackpackData.EquippedTools[toolInstance] = true
-            Refresh()
+        elseif newParent == Character() then
+            API.BackpackData.EquippedTools[toolInstance] = true
+            API.Refresh()
         elseif newParent == Player.Backpack then
-            BackpackData.EquippedTools[toolInstance] = nil
-            Refresh()
+            API.BackpackData.EquippedTools[toolInstance] = nil
+            API.Refresh()
         end
     end)
-    Refresh()
+    API.Refresh()
     return true
 end
 --// ============================================================
 --// EQUIP SYSTEM
 --// ============================================================
+
 function API.EquipSlot(slotIndex)
-    local globalIndex = GetGlobalIndex(slotIndex)
-    local item = BackpackData.AllItems[globalIndex]
+    local globalIndex = API.GetGlobalIndex(slotIndex)
+    local item = API.BackpackData.AllItems[globalIndex]
     if not item or not item.Tool then return end
-    for _, other in ipairs(BackpackData.AllItems) do
-        if other.Tool ~= item.Tool and other.Tool.Parent == Character then
+    for _, other in ipairs(API.BackpackData.AllItems) do
+        if other.Tool ~= item.Tool and other.Tool.Parent == Character() then
             other.Tool.Parent = Player.Backpack
-            BackpackData.EquippedTools[other.Tool] = nil
+            API.BackpackData.EquippedTools[other.Tool] = nil
         end
     end
-    item.Tool.Parent = Character
-    BackpackData.EquippedTools[item.Tool] = true
-    Refresh()
+    item.Tool.Parent = Character()
+    if item.Tool.Parent == Character() then
+        API.BackpackData.EquippedTools[item.Tool] = true
+    end
+    API.Refresh()
 end
+
 function API.UnequipSlot(slotIndex)
-    local globalIndex = GetGlobalIndex(slotIndex)
-    local item = BackpackData.AllItems[globalIndex]
+    local globalIndex = API.GetGlobalIndex(slotIndex)
+    local item = API.BackpackData.AllItems[globalIndex]
     if not item or not item.Tool then return end
-    if item.Tool.Parent == Character then
+    if item.Tool.Parent == Character() then
         item.Tool.Parent = Player.Backpack
     end
-    BackpackData.EquippedTools[item.Tool] = nil
-    Refresh()
+    API.BackpackData.EquippedTools[item.Tool] = nil
+    API.Refresh()
 end
 local function UseSlot(slotIndex)
-    local globalIndex = GetGlobalIndex(slotIndex)
-    local item = BackpackData.AllItems[globalIndex]
+    local globalIndex = API.GetGlobalIndex(slotIndex)
+    local item = API.BackpackData.AllItems[globalIndex]
     if not item or not item.Tool then return end
-    if IsToolEquipped(item.Tool) and item.Tool.Parent == Character then
+    if IsToolEquipped(item.Tool) and item.Tool.Parent == Character() then
         API.UnequipSlot(slotIndex)
         return
     end
@@ -394,7 +402,7 @@ local function CreateSlot(slotIndex)
     Equipped.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
     Equipped.BackgroundTransparency = 1
     Equipped.BorderSizePixel = 0
-    Equipped.ZIndex = 0
+    Equipped.ZIndex = 2
     Equipped.Parent = Slot
     local EqCorner = Instance.new("UICorner")
     EqCorner.CornerRadius = UDim.new(0, 8)
@@ -417,15 +425,15 @@ end
 --// NAVIGATION CONNECTIONS
 --// ============================================================
 table.insert(EventConnections, PrevButton.MouseButton1Click:Connect(function()
-    if BackpackData.CurrentPage > 1 then
-        BackpackData.CurrentPage = BackpackData.CurrentPage - 1
-        Refresh()
+    if API.BackpackData.CurrentPage > 1 then
+        API.BackpackData.CurrentPage = API.BackpackData.CurrentPage - 1
+        API.Refresh()
     end
 end))
 table.insert(EventConnections, NextButton.MouseButton1Click:Connect(function()
-    if BackpackData.CurrentPage < GetTotalPages() then
-        BackpackData.CurrentPage = BackpackData.CurrentPage + 1
-        Refresh()
+    if API.BackpackData.CurrentPage < GetTotalPages() then
+        API.BackpackData.CurrentPage = API.BackpackData.CurrentPage + 1
+        API.Refresh()
     end
 end))
 --// ============================================================
@@ -453,13 +461,26 @@ end))
 --// ============================================================
 --// TOOL PICKUP
 --// ============================================================
-table.insert(EventConnections, Player.Backpack.ChildAdded:Connect(function(child)
+local CharacterConnection = Character().ChildAdded:Connect(function(child)
     if child:IsA("Tool") then
         task.wait()
         AddItem(child)
     end
-end))
+end)
+local BackpackConnection = Player.Backpack.ChildAdded:Connect(function(child)
+    if child:IsA("Tool") then
+        task.wait()
+        AddItem(child)
+    end
+end)
+table.insert(EventConnections, CharacterConnection)
+table.insert(EventConnections, BackpackConnection)
 for _, tool in ipairs(Player.Backpack:GetChildren()) do
+    if tool:IsA("Tool") then
+        AddItem(tool)
+    end
+end
+for _, tool in ipairs(Character():GetChildren()) do
     if tool:IsA("Tool") then
         AddItem(tool)
     end
@@ -467,18 +488,37 @@ end
 --// ============================================================
 --// CHARACTER RESET
 --// ============================================================
-table.insert(EventConnections, Player.CharacterAdded:Connect(function(char)
-    Character = char
-    Humanoid = char:WaitForChild("Humanoid")
-    BackpackData.EquippedTools = {}
-    BackpackData.CurrentPage = 1
+table.insert(EventConnections, Player.CharacterAdded:Connect(function(Character)
+    API.BackpackData.EquippedTools = {}
+    API.BackpackData.CurrentPage = 1
     for tool, conn in pairs(ToolConnections) do
         conn:Disconnect()
     end
     ToolConnections = {}
-    BackpackData.AllItems = {}
-    Refresh()
+    API.BackpackData.AllItems = {}
+    API.Refresh()
+    BackpackConnection:Disconnect()
+    CharacterConnection:Disconnect()
+    BackpackConnection = Player.Backpack.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            task.wait()
+            AddItem(child)
+        end
+    end)
+    CharacterConnection = Character.ChildAdded:Connect(function(child)
+        if child:IsA("Tool") then
+            task.wait()
+            AddItem(child)
+        end
+    end)
+    table.insert(EventConnections, BackpackConnection)
+    table.insert(EventConnections, CharacterConnection)
     for _, tool in ipairs(Player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            AddItem(tool)
+        end
+    end
+    for _, tool in ipairs(Character:GetChildren()) do
         if tool:IsA("Tool") then
             AddItem(tool)
         end
@@ -547,7 +587,7 @@ end)
 --// ============================================================
 --// INITIAL REFRESH
 --// ============================================================
-Refresh()
+API.Refresh()
 --// ============================================================
 --// CLEANUP
 --// ============================================================
@@ -569,6 +609,10 @@ table.insert(EventConnections, ScreenGui.AncestryChanged:Connect(function()
             pcall(function() conn:Disconnect() end)
         end
         ToolConnections = {}
+        -- Clear data
+        API.BackpackData.AllItems = {}
+        API.BackpackData.EquippedTools = {}
+        API.BackpackData.CurrentPage = 1
         -- Deletes API
         table.clear(API)
         API = nil
@@ -576,10 +620,6 @@ table.insert(EventConnections, ScreenGui.AncestryChanged:Connect(function()
         pcall(function()
             game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)
         end)
-        -- Clear data
-        BackpackData.AllItems = {}
-        BackpackData.EquippedTools = {}
-        BackpackData.CurrentPage = 1
     end
 end))
 return ScreenGui, API
