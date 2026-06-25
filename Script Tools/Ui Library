@@ -1,0 +1,2147 @@
+
+--// BeautifulUI Framework
+--// A modern, premium Roblox UI Library
+--// Supports both exploit environments and standard Roblox games
+--// Version: 2.0.0
+
+local BeautifulUI = {
+    Version = "2.0.0",
+    Windows = {},
+    Notifications = {},
+    Config = {},
+    Flags = {},
+    Registry = {ThemeObjects = {}},
+    ZIndexCounter = 100,
+    Mobile = false,
+    Settings = {
+        Theme = "Dark",
+        Accent = Color3.fromRGB(88, 101, 242),
+        BackgroundTransparency = 0,
+        Glassmorphism = false,
+        Font = Enum.Font.Gotham,
+        CornerRadius = 8,
+        AnimationSpeed = 0.3,
+        EasingStyle = Enum.EasingStyle.Quint,
+        EasingDirection = Enum.EasingDirection.Out,
+        Scale = 1,
+        UseConfig = true,
+        ConfigName = "BeautifulUI_Config.json"
+    },
+    Themes = {
+        Dark = {
+            Background = Color3.fromRGB(25, 25, 30),
+            BackgroundSecondary = Color3.fromRGB(35, 35, 42),
+            BackgroundTertiary = Color3.fromRGB(45, 45, 55),
+            Text = Color3.fromRGB(240, 240, 240),
+            TextSecondary = Color3.fromRGB(180, 180, 190),
+            Border = Color3.fromRGB(55, 55, 65),
+            Shadow = Color3.fromRGB(0, 0, 0),
+            Accent = Color3.fromRGB(88, 101, 242),
+            Success = Color3.fromRGB(46, 204, 113),
+            Warning = Color3.fromRGB(241, 196, 15),
+            Error = Color3.fromRGB(231, 76, 60),
+            Hover = Color3.fromRGB(55, 55, 65),
+            Pressed = Color3.fromRGB(65, 65, 80)
+        },
+        Light = {
+            Background = Color3.fromRGB(245, 245, 247),
+            BackgroundSecondary = Color3.fromRGB(235, 235, 240),
+            BackgroundTertiary = Color3.fromRGB(225, 225, 232),
+            Text = Color3.fromRGB(30, 30, 35),
+            TextSecondary = Color3.fromRGB(80, 80, 90),
+            Border = Color3.fromRGB(200, 200, 210),
+            Shadow = Color3.fromRGB(0, 0, 0),
+            Accent = Color3.fromRGB(88, 101, 242),
+            Success = Color3.fromRGB(39, 174, 96),
+            Warning = Color3.fromRGB(243, 156, 18),
+            Error = Color3.fromRGB(192, 57, 43),
+            Hover = Color3.fromRGB(220, 220, 230),
+            Pressed = Color3.fromRGB(210, 210, 220)
+        }
+    }
+}
+
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--// Environment Detection
+local function GetHUI()
+    if gethui then
+        return gethui()
+    end
+    return CoreGui
+end
+
+local function ProtectInstance(instance)
+    instance.Parent = GetHUI()
+end
+
+local function IsFileSystem()
+    return writefile and readfile and isfile and isfolder and makefolder
+end
+
+--// Utilities
+local Utility = {}
+
+function Utility.Create(className, properties)
+    local instance = Instance.new(className)
+    for prop, value in pairs(properties or {}) do
+        if prop ~= "Parent" then
+            instance[prop] = value
+        end
+    end
+    if properties and properties.Parent then
+        instance.Parent = properties.Parent
+    end
+    return instance
+end
+
+function Utility.Tween(instance, properties, duration, easingStyle, easingDirection, callback)
+    local tween = TweenService:Create(instance, TweenInfo.new(
+        duration or BeautifulUI.Settings.AnimationSpeed,
+        easingStyle or BeautifulUI.Settings.EasingStyle,
+        easingDirection or BeautifulUI.Settings.EasingDirection
+    ), properties)
+    if callback then
+        tween.Completed:Once(callback)
+    end
+    tween:Play()
+    return tween
+end
+
+function Utility.FadeIn(instance, duration)
+    instance.BackgroundTransparency = 1
+    Utility.Tween(instance, {BackgroundTransparency = instance:GetAttribute("OriginalTransparency") or 0}, duration)
+end
+
+function Utility.FadeOut(instance, duration, callback)
+    Utility.Tween(instance, {BackgroundTransparency = 1}, duration, nil, nil, callback)
+end
+
+function Utility.MakeDraggable(frame, handle, onDragStart, onDragEnd)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            if onDragStart then onDragStart() end
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    if onDragEnd then onDragEnd() end
+                end
+            end)
+        end
+    end)
+
+    handle.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+
+    local connection = UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale, startPos.X.Offset + delta.X,
+                startPos.Y.Scale, startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    return connection
+end
+
+function Utility.MakeResizable(frame, minSize, onResize)
+    minSize = minSize or Vector2.new(200, 150)
+    local handle = Utility.Create("Frame", {
+        Name = "ResizeHandle",
+        Size = UDim2.new(0, 15, 0, 15),
+        Position = UDim2.new(1, -15, 1, -15),
+        BackgroundTransparency = 1,
+        ZIndex = frame.ZIndex + 10,
+        Parent = frame
+    })
+
+    local icon = Utility.Create("ImageLabel", {
+        Size = UDim2.new(0, 10, 0, 10),
+        Position = UDim2.new(1, -12, 1, -12),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://8551326092",
+        ImageColor3 = Color3.fromRGB(150, 150, 150),
+        ZIndex = frame.ZIndex + 11,
+        Parent = frame
+    })
+
+    local dragging = false
+    local startSize, startPos
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            startSize = frame.AbsoluteSize
+            startPos = input.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - startPos
+            local newWidth = math.max(minSize.X, startSize.X + delta.X)
+            local newHeight = math.max(minSize.Y, startSize.Y + delta.Y)
+            frame.Size = UDim2.new(0, newWidth, 0, newHeight)
+            if onResize then onResize(newWidth, newHeight) end
+        end
+    end)
+end
+
+function Utility.RGBtoHSV(color)
+    local r, g, b = color.R, color.G, color.B
+    local max, min = math.max(r, g, b), math.min(r, g, b)
+    local h, s, v
+    v = max
+    local d = max - min
+    s = max == 0 and 0 or d / max
+    if max == min then
+        h = 0
+    elseif max == r then
+        h = (g - b) / d + (g < b and 6 or 0)
+    elseif max == g then
+        h = (b - r) / d + 2
+    else
+        h = (r - g) / d + 4
+    end
+    h = h / 6
+    return h, s, v
+end
+
+function Utility.HSVtoRGB(h, s, v)
+    local r, g, b
+    local i = math.floor(h * 6)
+    local f = h * 6 - i
+    local p = v * (1 - s)
+    local q = v * (1 - f * s)
+    local t = v * (1 - (1 - f) * s)
+    i = i % 6
+    if i == 0 then r, g, b = v, t, p
+    elseif i == 1 then r, g, b = q, v, p
+    elseif i == 2 then r, g, b = p, v, t
+    elseif i == 3 then r, g, b = p, q, v
+    elseif i == 4 then r, g, b = t, p, v
+    elseif i == 5 then r, g, b = v, p, q
+    end
+    return Color3.new(r, g, b)
+end
+
+function Utility.CopyTable(tbl)
+    local copy = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            copy[k] = Utility.CopyTable(v)
+        else
+            copy[k] = v
+        end
+    end
+    return copy
+end
+
+--// Theme System
+function BeautifulUI:GetTheme()
+    return self.CustomThemes[self.Settings.Theme] or self.Themes[self.Settings.Theme] or self.Themes.Dark
+end
+
+function BeautifulUI:SetTheme(themeName)
+    if self.Themes[themeName] or self.CustomThemes[themeName] then
+        self.Settings.Theme = themeName
+        self:ApplyTheme()
+        self:SaveConfig()
+    end
+end
+
+function BeautifulUI:SetCustomTheme(name, colors)
+    self.CustomThemes[name] = colors
+    self:SetTheme(name)
+end
+
+function BeautifulUI:ApplyTheme()
+    local theme = self:GetTheme()
+    for _, obj in ipairs(self.Registry.ThemeObjects or {}) do
+        if obj.Instance and obj.Instance.Parent then
+            if obj.Type == "Background" then
+                obj.Instance.BackgroundColor3 = theme.Background
+            elseif obj.Type == "BackgroundSecondary" then
+                obj.Instance.BackgroundColor3 = theme.BackgroundSecondary
+            elseif obj.Type == "Text" then
+                obj.Instance.TextColor3 = theme.Text
+            elseif obj.Type == "TextSecondary" then
+                obj.Instance.TextColor3 = theme.TextSecondary
+            elseif obj.Type == "Border" then
+                obj.Instance.Color = theme.Border
+            elseif obj.Type == "Accent" then
+                obj.Instance.BackgroundColor3 = theme.Accent
+            end
+        end
+    end
+end
+
+function BeautifulUI:RegisterThemeObject(instance, type)
+    table.insert(self.Registry.ThemeObjects, {Instance = instance, Type = type})
+end
+
+--// Config System
+function BeautifulUI:SaveConfig(configName)
+    if not self.Settings.UseConfig then return end
+    configName = configName or self.Settings.ConfigName
+    local data = {}
+
+    for flag, info in pairs(self.Flags) do
+        if info.Type == "Color3" then
+            data[flag] = {R = info.Value.R, G = info.Value.G, B = info.Value.B}
+        else
+            data[flag] = info.Value
+        end
+    end
+
+    data.__Settings = self.Settings
+    local encoded = HttpService:JSONEncode(data)
+
+    if IsFileSystem() then
+        writefile(configName, encoded)
+    else
+        self.Config[configName] = encoded
+    end
+end
+
+function BeautifulUI:LoadConfig(configName)
+    if not self.Settings.UseConfig then return end
+    configName = configName or self.Settings.ConfigName
+    local encoded
+
+    if IsFileSystem() and isfile(configName) then
+        encoded = readfile(configName)
+    else
+        encoded = self.Config[configName]
+    end
+
+    if encoded then
+        local success, data = pcall(function() return HttpService:JSONDecode(encoded) end)
+        if success and data then
+            if data.__Settings then
+                for k, v in pairs(data.__Settings) do
+                    if k ~= "ConfigName" then
+                        self.Settings[k] = v
+                    end
+                end
+            end
+
+            for flag, value in pairs(data) do
+                if flag ~= "__Settings" and self.Flags[flag] then
+                    local info = self.Flags[flag]
+                    if info.Type == "Color3" and typeof(value) == "table" then
+                        value = Color3.new(value.R, value.G, value.B)
+                    end
+                    if info.SetValue then
+                        info.SetValue(value)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function BeautifulUI:RegisterFlag(flag, type, defaultValue, setValueFunc)
+    self.Flags[flag] = {
+        Type = type,
+        Value = defaultValue,
+        SetValue = setValueFunc
+    }
+end
+
+--// Notification System
+function BeautifulUI:Notify(config)
+    config = config or {}
+    local title = config.Title or "Notification"
+    local message = config.Message or ""
+    local duration = config.Duration or 3
+    local type = config.Type or "Info"
+
+    local theme = self:GetTheme()
+    local notifGui = self.NotificationGui
+
+    if not notifGui then
+        notifGui = Utility.Create("ScreenGui", {
+            Name = "BeautifulUI_Notifications",
+            ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+            Parent = GetHUI()
+        })
+        self.NotificationGui = notifGui
+    end
+
+    local container = notifGui:FindFirstChild("Container") or Utility.Create("Frame", {
+        Name = "Container",
+        Size = UDim2.new(0, 300, 1, 0),
+        Position = UDim2.new(1, -320, 0, 20),
+        BackgroundTransparency = 1,
+        Parent = notifGui
+    })
+
+    local layout = container:FindFirstChild("UIListLayout") or Utility.Create("UIListLayout", {
+        Padding = UDim.new(0, 8),
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = container
+    })
+
+    local color = theme.Accent
+    if type == "Success" then color = theme.Success
+    elseif type == "Warning" then color = theme.Warning
+    elseif type == "Error" then color = theme.Error end
+
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = theme.BackgroundSecondary,
+        BorderSizePixel = 0,
+        Parent = container
+    })
+
+    local corner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, self.Settings.CornerRadius), Parent = frame})
+    local stroke = Utility.Create("UIStroke", {Color = theme.Border, Thickness = 1, Parent = frame})
+    local padding = Utility.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+        PaddingTop = UDim.new(0, 10),
+        PaddingBottom = UDim.new(0, 10),
+        Parent = frame
+    })
+
+    local accentBar = Utility.Create("Frame", {
+        Size = UDim2.new(0, 3, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = color,
+        BorderSizePixel = 0,
+        Parent = frame
+    })
+    local barCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 2), Parent = accentBar})
+
+    local titleLabel = Utility.Create("TextLabel", {
+        Size = UDim2.new(1, -20, 0, 18),
+        Position = UDim2.new(0, 8, 0, 0),
+        BackgroundTransparency = 1,
+        Text = title,
+        TextColor3 = theme.Text,
+        Font = self.Settings.Font,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+
+    local msgLabel = Utility.Create("TextLabel", {
+        Size = UDim2.new(1, -20, 0, 0),
+        Position = UDim2.new(0, 8, 0, 20),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Text = message,
+        TextColor3 = theme.TextSecondary,
+        Font = self.Settings.Font,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        Parent = frame
+    })
+
+    local progress = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 2),
+        Position = UDim2.new(0, 0, 1, -2),
+        BackgroundColor3 = color,
+        BorderSizePixel = 0,
+        Parent = frame
+    })
+    local progCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 1), Parent = progress})
+
+    frame.BackgroundTransparency = 1
+    frame.Position = UDim2.new(1, 20, 0, 0)
+
+    Utility.Tween(frame, {BackgroundTransparency = 0, Position = UDim2.new(0, 0, 0, 0)}, 0.4)
+    Utility.Tween(progress, {Size = UDim2.new(0, 0, 0, 2)}, duration, Enum.EasingStyle.Linear)
+
+    task.delay(duration, function()
+        Utility.Tween(frame, {Position = UDim2.new(1, 20, 0, 0), BackgroundTransparency = 1}, 0.4, nil, nil, function()
+            frame:Destroy()
+        end)
+    end)
+end
+
+--// Window System
+local Window = {}
+Window.__index = Window
+
+function BeautifulUI:CreateWindow(config)
+    config = config or {}
+    local window = setmetatable({}, Window)
+
+    window.Name = config.Title or "BeautifulUI"
+    window.Size = config.Size or UDim2.new(0, 600, 0, 400)
+    window.MinSize = config.MinSize or Vector2.new(400, 250)
+    window.Position = config.Position or UDim2.new(0.5, -300, 0.5, -200)
+    window.Tabs = {}
+    window.ActiveTab = nil
+    window.Minimized = false
+    window.Maximized = false
+    window.Connections = {}
+    window.Elements = {}
+
+    local parent = GetHUI()
+    local existing = parent:FindFirstChild("BeautifulUI_" .. window.Name)
+    if existing then existing:Destroy() end
+
+    window.ScreenGui = Utility.Create("ScreenGui", {
+        Name = "BeautifulUI_" .. window.Name,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        ResetOnSpawn = false,
+        Parent = parent
+    })
+
+    local theme = self:GetTheme()
+
+    window.MainFrame = Utility.Create("Frame", {
+        Name = "Main",
+        Size = window.Size,
+        Position = window.Position,
+        BackgroundColor3 = theme.Background,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = self.ZIndexCounter,
+        Parent = window.ScreenGui
+    })
+    self.ZIndexCounter = self.ZIndexCounter + 1
+    self:RegisterThemeObject(window.MainFrame, "Background")
+
+    local mainCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, self.Settings.CornerRadius + 2), Parent = window.MainFrame})
+
+    window.Shadow = Utility.Create("ImageLabel", {
+        Name = "Shadow",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, 40, 1, 40),
+        BackgroundTransparency = 1,
+        Image = "rbxassetid://5554236805",
+        ImageColor3 = theme.Shadow,
+        ImageTransparency = 0.6,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(23, 23, 277, 277),
+        ZIndex = window.MainFrame.ZIndex - 1,
+        Parent = window.ScreenGui
+    })
+
+    if self.Settings.Glassmorphism then
+        window.GlassOverlay = Utility.Create("Frame", {
+            Name = "Glass",
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundTransparency = 0.85,
+            BackgroundColor3 = Color3.new(1, 1, 1),
+            ZIndex = window.MainFrame.ZIndex + 50,
+            Parent = window.MainFrame
+        })
+        local glassCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, self.Settings.CornerRadius + 2), Parent = window.GlassOverlay})
+        local glassGrad = Utility.Create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+                ColorSequenceKeypoint.new(1, Color3.new(0.9, 0.9, 0.95))
+            }),
+            Transparency = NumberSequence.new(0.9, 0.95),
+            Parent = window.GlassOverlay
+        })
+    end
+
+    local scale = self.Settings.Scale
+    if UserInputService.TouchEnabled then
+        scale = scale * 0.85
+        self.Mobile = true
+    end
+
+    window.UIScale = Utility.Create("UIScale", {
+        Scale = scale,
+        Parent = window.MainFrame
+    })
+
+    window.TitleBar = Utility.Create("Frame", {
+        Name = "TitleBar",
+        Size = UDim2.new(1, 0, 0, 36),
+        BackgroundColor3 = theme.BackgroundSecondary,
+        BorderSizePixel = 0,
+        ZIndex = window.MainFrame.ZIndex + 1,
+        Parent = window.MainFrame
+    })
+    self:RegisterThemeObject(window.TitleBar, "BackgroundSecondary")
+
+    local titleCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, self.Settings.CornerRadius), Parent = window.TitleBar})
+    local titleStroke = Utility.Create("UIStroke", {Color = theme.Border, Thickness = 1, Transparency = 0.5, Parent = window.TitleBar})
+
+    window.TitleLabel = Utility.Create("TextLabel", {
+        Name = "Title",
+        Size = UDim2.new(0, 200, 1, 0),
+        Position = UDim2.new(0, 12, 0, 0),
+        BackgroundTransparency = 1,
+        Text = window.Name,
+        TextColor3 = theme.Text,
+        Font = self.Settings.Font,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = window.TitleBar.ZIndex + 1,
+        Parent = window.TitleBar
+    })
+    self:RegisterThemeObject(window.TitleLabel, "Text")
+
+    window.SearchBox = Utility.Create("TextBox", {
+        Name = "Search",
+        Size = UDim2.new(0, 140, 0, 24),
+        Position = UDim2.new(1, -220, 0, 6),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        BorderSizePixel = 0,
+        Text = "",
+        PlaceholderText = "Search...",
+        TextColor3 = theme.Text,
+        PlaceholderColor3 = theme.TextSecondary,
+        Font = self.Settings.Font,
+        TextSize = 12,
+        ClearTextOnFocus = false,
+        ZIndex = window.TitleBar.ZIndex + 1,
+        Parent = window.TitleBar
+    })
+    self:RegisterThemeObject(window.SearchBox, "BackgroundTertiary")
+    local searchCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = window.SearchBox})
+
+    window.SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+        window:FilterElements(window.SearchBox.Text)
+    end)
+
+    local btnSize = UDim2.new(0, 28, 0, 28)
+    local btnY = 4
+
+    window.MinimizeBtn = Utility.Create("TextButton", {
+        Name = "Minimize",
+        Size = btnSize,
+        Position = UDim2.new(1, -64, 0, btnY),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        Text = "-",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        AutoButtonColor = false,
+        ZIndex = window.TitleBar.ZIndex + 1,
+        Parent = window.TitleBar
+    })
+    local minCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = window.MinimizeBtn})
+
+    window.MaximizeBtn = Utility.Create("TextButton", {
+        Name = "Maximize",
+        Size = btnSize,
+        Position = UDim2.new(1, -94, 0, btnY),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        Text = "□",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 14,
+        AutoButtonColor = false,
+        ZIndex = window.TitleBar.ZIndex + 1,
+        Parent = window.TitleBar
+    })
+    local maxCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = window.MaximizeBtn})
+
+    window.CloseBtn = Utility.Create("TextButton", {
+        Name = "Close",
+        Size = btnSize,
+        Position = UDim2.new(1, -34, 0, btnY),
+        BackgroundColor3 = theme.Error,
+        Text = "×",
+        TextColor3 = Color3.new(1, 1, 1),
+        Font = Enum.Font.GothamBold,
+        TextSize = 16,
+        AutoButtonColor = false,
+        ZIndex = window.TitleBar.ZIndex + 1,
+        Parent = window.TitleBar
+    })
+    local closeCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = window.CloseBtn})
+
+    window.SettingsBtn = Utility.Create("TextButton", {
+        Name = "Settings",
+        Size = btnSize,
+        Position = UDim2.new(1, -124, 0, btnY),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        Text = "⚙",
+        TextColor3 = theme.Text,
+        Font = Enum.Font.GothamBold,
+        TextSize = 14,
+        AutoButtonColor = false,
+        ZIndex = window.TitleBar.ZIndex + 1,
+        Parent = window.TitleBar
+    })
+    local setCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = window.SettingsBtn})
+
+    window.TabContainer = Utility.Create("Frame", {
+        Name = "TabContainer",
+        Size = UDim2.new(0, 130, 1, -36),
+        Position = UDim2.new(0, 0, 0, 36),
+        BackgroundColor3 = theme.Background,
+        BorderSizePixel = 0,
+        ZIndex = window.MainFrame.ZIndex + 1,
+        Parent = window.MainFrame
+    })
+    self:RegisterThemeObject(window.TabContainer, "Background")
+
+    local tabLayout = Utility.Create("UIListLayout", {
+        Padding = UDim.new(0, 4),
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = window.TabContainer
+    })
+    local tabPadding = Utility.Create("UIPadding", {
+        PaddingTop = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 6),
+        PaddingRight = UDim.new(0, 6),
+        Parent = window.TabContainer
+    })
+
+    window.ContentContainer = Utility.Create("Frame", {
+        Name = "Content",
+        Size = UDim2.new(1, -130, 1, -36),
+        Position = UDim2.new(0, 130, 0, 36),
+        BackgroundColor3 = theme.BackgroundSecondary,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = window.MainFrame.ZIndex + 1,
+        Parent = window.MainFrame
+    })
+    self:RegisterThemeObject(window.ContentContainer, "BackgroundSecondary")
+
+    local contentCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, self.Settings.CornerRadius), Parent = window.ContentContainer})
+
+    Utility.MakeDraggable(window.MainFrame, window.TitleBar, 
+        function() window:BringToFront() end
+    )
+    Utility.MakeResizable(window.MainFrame, window.MinSize)
+
+    window.CloseBtn.MouseButton1Click:Connect(function()
+        window:Close()
+    end)
+
+    window.MinimizeBtn.MouseButton1Click:Connect(function()
+        window:Minimize()
+    end)
+
+    window.MaximizeBtn.MouseButton1Click:Connect(function()
+        window:Maximize()
+    end)
+
+    window.SettingsBtn.MouseButton1Click:Connect(function()
+        window:ToggleSettings()
+    end)
+
+    window.MainFrame.InputBegan:Connect(function()
+        window:BringToFront()
+    end)
+
+    window:InitSettingsPanel()
+
+    table.insert(self.Windows, window)
+
+    window.MainFrame.Size = UDim2.new(0, window.Size.X.Offset * 0.8, 0, window.Size.Y.Offset * 0.8)
+    window.MainFrame.BackgroundTransparency = 1
+    window.Shadow.ImageTransparency = 1
+
+    Utility.Tween(window.MainFrame, {
+        Size = window.Size,
+        BackgroundTransparency = self.Settings.Glassmorphism and 0.2 or 0
+    }, 0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+    Utility.Tween(window.Shadow, {ImageTransparency = 0.6}, 0.5)
+
+    return window
+end
+
+function Window:BringToFront()
+    BeautifulUI.ZIndexCounter = BeautifulUI.ZIndexCounter + 1
+    self.MainFrame.ZIndex = BeautifulUI.ZIndexCounter
+    self.Shadow.ZIndex = BeautifulUI.ZIndexCounter - 1
+end
+
+function Window:Close()
+    Utility.Tween(self.MainFrame, {Size = UDim2.new(0, self.MainFrame.AbsoluteSize.X * 0.8, 0, self.MainFrame.AbsoluteSize.Y * 0.8), BackgroundTransparency = 1}, 0.3)
+    Utility.Tween(self.Shadow, {ImageTransparency = 1}, 0.3, nil, nil, function()
+        self.ScreenGui:Destroy()
+        for i, w in ipairs(BeautifulUI.Windows) do
+            if w == self then
+                table.remove(BeautifulUI.Windows, i)
+                break
+            end
+        end
+    end)
+end
+
+function Window:Minimize()
+    if self.Maximized then
+        self:Maximize()
+        return
+    end
+    self.Minimized = not self.Minimized
+    if self.Minimized then
+        self.ContentContainer.Visible = false
+        self.TabContainer.Visible = false
+        self.OriginalSize = self.MainFrame.Size
+        Utility.Tween(self.MainFrame, {Size = UDim2.new(0, 200, 0, 36)}, 0.3)
+        self.MinimizeBtn.Text = "+"
+    else
+        self.ContentContainer.Visible = true
+        self.TabContainer.Visible = true
+        Utility.Tween(self.MainFrame, {Size = self.OriginalSize or self.Size}, 0.3)
+        self.MinimizeBtn.Text = "-"
+    end
+end
+
+function Window:Maximize()
+    self.Maximized = not self.Maximized
+    if self.Maximized then
+        self.OriginalPos = self.MainFrame.Position
+        self.OriginalSize = self.MainFrame.Size
+        Utility.Tween(self.MainFrame, {
+            Position = UDim2.new(0, 10, 0, 10),
+            Size = UDim2.new(1, -20, 1, -20)
+        }, 0.3)
+        self.MaximizeBtn.Text = "❐"
+    else
+        Utility.Tween(self.MainFrame, {
+            Position = self.OriginalPos or self.Position,
+            Size = self.OriginalSize or self.Size
+        }, 0.3)
+        self.MaximizeBtn.Text = "□"
+    end
+end
+
+function Window:FilterElements(searchText)
+    searchText = string.lower(searchText)
+    for _, tab in ipairs(self.Tabs) do
+        local tabVisible = false
+        for _, section in ipairs(tab.Sections) do
+            local sectionVisible = false
+            for _, element in ipairs(section.Elements) do
+                local name = string.lower(element.Name or "")
+                local visible = searchText == "" or string.find(name, searchText, 1, true)
+                element.Instance.Visible = visible
+                if visible then sectionVisible = true end
+            end
+            section.Frame.Visible = sectionVisible or searchText == ""
+            if sectionVisible then tabVisible = true end
+        end
+    end
+end
+
+function Window:InitSettingsPanel()
+    self.SettingsPanel = Utility.Create("Frame", {
+        Name = "SettingsPanel",
+        Size = UDim2.new(1, -130, 1, -36),
+        Position = UDim2.new(0, 130, 0, 36),
+        BackgroundColor3 = BeautifulUI:GetTheme().BackgroundSecondary,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Visible = false,
+        ZIndex = self.MainFrame.ZIndex + 20,
+        Parent = self.MainFrame
+    })
+    BeautifulUI:RegisterThemeObject(self.SettingsPanel, "BackgroundSecondary")
+
+    local settingsCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, BeautifulUI.Settings.CornerRadius), Parent = self.SettingsPanel})
+    local settingsPadding = Utility.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 12),
+        PaddingRight = UDim.new(0, 12),
+        PaddingTop = UDim.new(0, 12),
+        PaddingBottom = UDim.new(0, 12),
+        Parent = self.SettingsPanel
+    })
+    local settingsLayout = Utility.Create("UIListLayout", {
+        Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = self.SettingsPanel
+    })
+end
+
+function Window:ToggleSettings()
+    local visible = not self.SettingsPanel.Visible
+    self.SettingsPanel.Visible = visible
+    self.ContentContainer.Visible = not visible
+    self.TabContainer.Visible = not visible
+
+    if visible then
+        self:PopulateSettings()
+    end
+end
+
+function Window:PopulateSettings()
+    for _, child in ipairs(self.SettingsPanel:GetChildren()) do
+        if child:IsA("Frame") or child:IsA("TextButton") or child:IsA("TextLabel") then
+            child:Destroy()
+        end
+    end
+
+    local theme = BeautifulUI:GetTheme()
+
+    local title = Utility.Create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 24),
+        BackgroundTransparency = 1,
+        Text = "UI Settings",
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = self.SettingsPanel
+    })
+
+    self:CreateSettingsDropdown(self.SettingsPanel, "Theme", {"Dark", "Light"}, BeautifulUI.Settings.Theme, function(val)
+        BeautifulUI:SetTheme(val)
+    end)
+
+    self:CreateSettingsColorPicker(self.SettingsPanel, "Accent Color", BeautifulUI.Settings.Accent, function(color)
+        BeautifulUI.Settings.Accent = color
+        BeautifulUI:ApplyTheme()
+        BeautifulUI:SaveConfig()
+    end)
+
+    self:CreateSettingsToggle(self.SettingsPanel, "Glassmorphism", BeautifulUI.Settings.Glassmorphism, function(val)
+        BeautifulUI.Settings.Glassmorphism = val
+        BeautifulUI:SaveConfig()
+    end)
+
+    self:CreateSettingsSlider(self.SettingsPanel, "Corner Radius", 0, 16, BeautifulUI.Settings.CornerRadius, function(val)
+        BeautifulUI.Settings.CornerRadius = val
+    end)
+
+    self:CreateSettingsSlider(self.SettingsPanel, "Animation Speed", 0, 1, BeautifulUI.Settings.AnimationSpeed, function(val)
+        BeautifulUI.Settings.AnimationSpeed = val
+    end)
+
+    self:CreateSettingsSlider(self.SettingsPanel, "UI Scale", 0.5, 1.5, BeautifulUI.Settings.Scale, function(val)
+        BeautifulUI.Settings.Scale = val
+        for _, w in ipairs(BeautifulUI.Windows) do
+            w.UIScale.Scale = val
+        end
+    end)
+end
+
+function Window:CreateSettingsToggle(parent, name, default, callback)
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundTransparency = 1,
+        Parent = parent
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.5, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+
+    local toggle = Utility.Create("Frame", {
+        Size = UDim2.new(0, 40, 0, 20),
+        Position = UDim2.new(1, -40, 0.5, -10),
+        BackgroundColor3 = default and theme.Accent or theme.BackgroundTertiary,
+        BorderSizePixel = 0,
+        Parent = frame
+    })
+    local tCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = toggle})
+
+    local knob = Utility.Create("Frame", {
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = default and UDim2.new(1, -18, 0, 2) or UDim2.new(0, 2, 0, 2),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        BorderSizePixel = 0,
+        Parent = toggle
+    })
+    local kCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = knob})
+
+    local enabled = default
+    local btn = Utility.Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        Parent = frame
+    })
+
+    btn.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        Utility.Tween(toggle, {BackgroundColor3 = enabled and theme.Accent or theme.BackgroundTertiary}, 0.2)
+        Utility.Tween(knob, {Position = enabled and UDim2.new(1, -18, 0, 2) or UDim2.new(0, 2, 0, 2)}, 0.2)
+        callback(enabled)
+    end)
+end
+
+function Window:CreateSettingsSlider(parent, name, min, max, default, callback)
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 40),
+        BackgroundTransparency = 1,
+        Parent = parent
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.5, 0, 0, 18),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+
+    local valueLabel = Utility.Create("TextLabel", {
+        Size = UDim2.new(0, 40, 0, 18),
+        Position = UDim2.new(1, -40, 0, 0),
+        BackgroundTransparency = 1,
+        Text = tostring(default),
+        TextColor3 = theme.TextSecondary,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Parent = frame
+    })
+
+    local track = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 4),
+        Position = UDim2.new(0, 0, 0, 26),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        BorderSizePixel = 0,
+        Parent = frame
+    })
+    local tCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = track})
+
+    local fill = Utility.Create("Frame", {
+        Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
+        BackgroundColor3 = theme.Accent,
+        BorderSizePixel = 0,
+        Parent = track
+    })
+    local fCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = fill})
+
+    local dragging = false
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local pos = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            local val = min + (max - min) * pos
+            val = math.floor(val * 100) / 100
+            fill.Size = UDim2.new(pos, 0, 1, 0)
+            valueLabel.Text = tostring(val)
+            callback(val)
+        end
+    end)
+end
+
+function Window:CreateSettingsDropdown(parent, name, options, default, callback)
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundTransparency = 1,
+        Parent = parent
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.5, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+
+    local btn = Utility.Create("TextButton", {
+        Size = UDim2.new(0, 120, 0, 24),
+        Position = UDim2.new(1, -120, 0.5, -12),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        Text = default,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        AutoButtonColor = false,
+        Parent = frame
+    })
+    local bCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = btn})
+
+    btn.MouseButton1Click:Connect(function()
+        local expanded = btn:FindFirstChild("DropdownMenu")
+        if expanded then
+            expanded:Destroy()
+            return
+        end
+
+        local menu = Utility.Create("Frame", {
+            Name = "DropdownMenu",
+            Size = UDim2.new(1, 0, 0, #options * 26),
+            Position = UDim2.new(0, 0, 1, 4),
+            BackgroundColor3 = theme.BackgroundTertiary,
+            BorderSizePixel = 0,
+            ZIndex = 50,
+            Parent = btn
+        })
+        local mCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = menu})
+        local mLayout = Utility.Create("UIListLayout", {Parent = menu})
+
+        for _, opt in ipairs(options) do
+            local optBtn = Utility.Create("TextButton", {
+                Size = UDim2.new(1, 0, 0, 26),
+                BackgroundTransparency = 1,
+                Text = opt,
+                TextColor3 = theme.Text,
+                Font = BeautifulUI.Settings.Font,
+                TextSize = 12,
+                ZIndex = 51,
+                Parent = menu
+            })
+            optBtn.MouseButton1Click:Connect(function()
+                btn.Text = opt
+                menu:Destroy()
+                callback(opt)
+            end)
+        end
+    end)
+end
+
+function Window:CreateSettingsColorPicker(parent, name, default, callback)
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundTransparency = 1,
+        Parent = parent
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.5, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+
+    local preview = Utility.Create("TextButton", {
+        Size = UDim2.new(0, 40, 0, 24),
+        Position = UDim2.new(1, -40, 0.5, -12),
+        BackgroundColor3 = default,
+        Text = "",
+        AutoButtonColor = false,
+        Parent = frame
+    })
+    local pCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = preview})
+
+    preview.MouseButton1Click:Connect(function()
+        local picker = Utility.Create("Frame", {
+            Size = UDim2.new(0, 200, 0, 150),
+            Position = UDim2.new(0, -160, 1, 4),
+            BackgroundColor3 = theme.BackgroundSecondary,
+            BorderSizePixel = 0,
+            ZIndex = 50,
+            Parent = preview
+        })
+        local pCorner2 = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = picker})
+
+        local hueTrack = Utility.Create("Frame", {
+            Size = UDim2.new(1, -20, 0, 12),
+            Position = UDim2.new(0, 10, 0, 10),
+            BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+            BorderSizePixel = 0,
+            ZIndex = 51,
+            Parent = picker
+        })
+        local hCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = hueTrack})
+
+        local hueGrad = Utility.Create("UIGradient", {
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+                ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 255, 0)),
+                ColorSequenceKeypoint.new(0.33, Color3.fromRGB(0, 255, 0)),
+                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 255)),
+                ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 0, 255)),
+                ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
+            }),
+            Parent = hueTrack
+        })
+
+        local currentHue, currentSat, currentVal = Utility.RGBtoHSV(default)
+
+        local satValBox = Utility.Create("Frame", {
+            Size = UDim2.new(1, -20, 0, 80),
+            Position = UDim2.new(0, 10, 0, 32),
+            BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+            BorderSizePixel = 0,
+            ZIndex = 51,
+            Parent = picker
+        })
+        local sCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = satValBox})
+
+        local function updateColor()
+            local color = Utility.HSVtoRGB(currentHue, currentSat, currentVal)
+            preview.BackgroundColor3 = color
+            callback(color)
+        end
+
+        local hueDragging = false
+        hueTrack.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = true end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if hueDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local pos = math.clamp((input.Position.X - hueTrack.AbsolutePosition.X) / hueTrack.AbsoluteSize.X, 0, 1)
+                currentHue = pos
+                satValBox.BackgroundColor3 = Utility.HSVtoRGB(currentHue, 1, 1)
+                updateColor()
+            end
+        end)
+
+        local svDragging = false
+        satValBox.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if svDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local x = math.clamp((input.Position.X - satValBox.AbsolutePosition.X) / satValBox.AbsoluteSize.X, 0, 1)
+                local y = math.clamp((input.Position.Y - satValBox.AbsolutePosition.Y) / satValBox.AbsoluteSize.Y, 0, 1)
+                currentSat = x
+                currentVal = 1 - y
+                updateColor()
+            end
+        end)
+
+        local closeBtn = Utility.Create("TextButton", {
+            Size = UDim2.new(0, 60, 0, 20),
+            Position = UDim2.new(0.5, -30, 1, -26),
+            BackgroundColor3 = theme.Accent,
+            Text = "Done",
+            TextColor3 = Color3.new(1,1,1),
+            Font = BeautifulUI.Settings.Font,
+            TextSize = 12,
+            ZIndex = 52,
+            Parent = picker
+        })
+        closeBtn.MouseButton1Click:Connect(function()
+            picker:Destroy()
+        end)
+    end)
+end
+
+--// Tab System
+local Tab = {}
+Tab.__index = Tab
+
+function Window:CreateTab(name)
+    local tab = setmetatable({}, Tab)
+    tab.Name = name or "Tab"
+    tab.Sections = {}
+    tab.Window = self
+
+    local theme = BeautifulUI:GetTheme()
+
+    tab.Button = Utility.Create("TextButton", {
+        Name = name .. "_Tab",
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundColor3 = theme.BackgroundSecondary,
+        Text = name,
+        TextColor3 = theme.TextSecondary,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        AutoButtonColor = false,
+        LayoutOrder = #self.Tabs + 1,
+        Parent = self.TabContainer
+    })
+    local btnCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = tab.Button})
+    BeautifulUI:RegisterThemeObject(tab.Button, "BackgroundSecondary")
+
+    tab.Content = Utility.Create("ScrollingFrame", {
+        Name = name .. "_Content",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 2,
+        ScrollBarImageColor3 = theme.Accent,
+        Visible = false,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Parent = self.ContentContainer
+    })
+
+    local contentLayout = Utility.Create("UIListLayout", {
+        Padding = UDim.new(0, 10),
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = tab.Content
+    })
+    local contentPadding = Utility.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 10),
+        PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 10),
+        PaddingBottom = UDim.new(0, 10),
+        Parent = tab.Content
+    })
+
+    tab.Button.MouseButton1Click:Connect(function()
+        self:SelectTab(tab)
+    end)
+
+    table.insert(self.Tabs, tab)
+
+    if not self.ActiveTab then
+        self:SelectTab(tab)
+    end
+
+    return tab
+end
+
+function Window:SelectTab(tab)
+    if self.ActiveTab then
+        local theme = BeautifulUI:GetTheme()
+        self.ActiveTab.Content.Visible = false
+        Utility.Tween(self.ActiveTab.Button, {BackgroundColor3 = theme.BackgroundSecondary, TextColor3 = theme.TextSecondary}, 0.2)
+    end
+
+    self.ActiveTab = tab
+    tab.Content.Visible = true
+    local theme = BeautifulUI:GetTheme()
+    Utility.Tween(tab.Button, {BackgroundColor3 = theme.Accent, TextColor3 = Color3.new(1, 1, 1)}, 0.2)
+end
+
+--// Section System
+local Section = {}
+Section.__index = Section
+
+function Tab:CreateSection(name)
+    local section = setmetatable({}, Section)
+    section.Name = name or "Section"
+    section.Elements = {}
+    section.Tab = self
+
+    local theme = BeautifulUI:GetTheme()
+
+    section.Frame = Utility.Create("Frame", {
+        Name = name .. "_Section",
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = theme.Background,
+        BorderSizePixel = 0,
+        LayoutOrder = #self.Sections + 1,
+        Parent = self.Content
+    })
+    local frameCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, BeautifulUI.Settings.CornerRadius), Parent = section.Frame})
+    local frameStroke = Utility.Create("UIStroke", {Color = theme.Border, Thickness = 1, Parent = section.Frame})
+    BeautifulUI:RegisterThemeObject(section.Frame, "Background")
+
+    local header = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 28),
+        BackgroundColor3 = theme.BackgroundSecondary,
+        BorderSizePixel = 0,
+        Parent = section.Frame
+    })
+    local headCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, BeautifulUI.Settings.CornerRadius), Parent = header})
+    BeautifulUI:RegisterThemeObject(header, "BackgroundSecondary")
+
+    local title = Utility.Create("TextLabel", {
+        Size = UDim2.new(1, -20, 1, 0),
+        Position = UDim2.new(0, 10, 0, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = header
+    })
+    BeautifulUI:RegisterThemeObject(title, "Text")
+
+    section.ElementContainer = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(0, 0, 0, 28),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Parent = section.Frame
+    })
+
+    local elementLayout = Utility.Create("UIListLayout", {
+        Padding = UDim.new(0, 6),
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = section.ElementContainer
+    })
+    local elementPadding = Utility.Create("UIPadding", {
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        PaddingTop = UDim.new(0, 8),
+        PaddingBottom = UDim.new(0, 8),
+        Parent = section.ElementContainer
+    })
+
+    table.insert(self.Sections, section)
+    return section
+end
+
+--// Element Creators
+function Section:CreateButton(config)
+    config = config or {}
+    local name = config.Name or "Button"
+    local callback = config.Callback or function() end
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local btn = Utility.Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = theme.Accent,
+        Text = name,
+        TextColor3 = Color3.new(1, 1, 1),
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        AutoButtonColor = false,
+        Parent = frame
+    })
+    local corner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 6), Parent = btn})
+
+    btn.MouseEnter:Connect(function()
+        Utility.Tween(btn, {BackgroundColor3 = theme.Accent:Lerp(Color3.new(0,0,0), 0.2)}, 0.15)
+    end)
+    btn.MouseLeave:Connect(function()
+        Utility.Tween(btn, {BackgroundColor3 = theme.Accent}, 0.15)
+    end)
+
+    btn.MouseButton1Down:Connect(function()
+        Utility.Tween(btn, {Size = UDim2.new(0.97, 0, 0.9, 0), Position = UDim2.new(0.015, 0, 0.05, 0)}, 0.1)
+    end)
+    btn.MouseButton1Up:Connect(function()
+        Utility.Tween(btn, {Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0)}, 0.1)
+    end)
+
+    btn.MouseButton1Click:Connect(function()
+        callback()
+    end)
+
+    local element = {Name = name, Type = "Button", Instance = frame, Callback = callback}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateToggle(config)
+    config = config or {}
+    local name = config.Name or "Toggle"
+    local default = config.Default or false
+    local callback = config.Callback or function() end
+    local flag = config.Flag or name
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.7, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local toggle = Utility.Create("Frame", {
+        Size = UDim2.new(0, 40, 0, 20),
+        Position = UDim2.new(1, -40, 0.5, -10),
+        BackgroundColor3 = default and theme.Accent or theme.BackgroundTertiary,
+        BorderSizePixel = 0,
+        Parent = frame
+    })
+    local tCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = toggle})
+    BeautifulUI:RegisterThemeObject(toggle, "Accent")
+
+    local knob = Utility.Create("Frame", {
+        Size = UDim2.new(0, 16, 0, 16),
+        Position = default and UDim2.new(1, -18, 0, 2) or UDim2.new(0, 2, 0, 2),
+        BackgroundColor3 = Color3.new(1, 1, 1),
+        BorderSizePixel = 0,
+        Parent = toggle
+    })
+    local kCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = knob})
+
+    local enabled = default
+    local function setValue(val)
+        enabled = val
+        Utility.Tween(toggle, {BackgroundColor3 = enabled and theme.Accent or theme.BackgroundTertiary}, 0.2)
+        Utility.Tween(knob, {Position = enabled and UDim2.new(1, -18, 0, 2) or UDim2.new(0, 2, 0, 2)}, 0.2)
+        callback(enabled)
+        BeautifulUI.Flags[flag] = {Type = "boolean", Value = enabled, SetValue = setValue}
+        BeautifulUI:SaveConfig()
+    end
+
+    local btn = Utility.Create("TextButton", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        Parent = frame
+    })
+
+    btn.MouseButton1Click:Connect(function()
+        setValue(not enabled)
+    end)
+
+    BeautifulUI:RegisterFlag(flag, "boolean", default, setValue)
+
+    local element = {Name = name, Type = "Toggle", Instance = frame, SetValue = setValue, GetValue = function() return enabled end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateSlider(config)
+    config = config or {}
+    local name = config.Name or "Slider"
+    local min = config.Min or 0
+    local max = config.Max or 100
+    local default = config.Default or min
+    local increment = config.Increment or 1
+    local suffix = config.Suffix or ""
+    local callback = config.Callback or function() end
+    local flag = config.Flag or name
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 44),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.6, 0, 0, 18),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local valueLabel = Utility.Create("TextLabel", {
+        Size = UDim2.new(0, 50, 0, 18),
+        Position = UDim2.new(1, -50, 0, 0),
+        BackgroundTransparency = 1,
+        Text = tostring(default) .. suffix,
+        TextColor3 = theme.TextSecondary,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(valueLabel, "TextSecondary")
+
+    local track = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 4),
+        Position = UDim2.new(0, 0, 0, 30),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        BorderSizePixel = 0,
+        Parent = frame
+    })
+    local tCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = track})
+
+    local fill = Utility.Create("Frame", {
+        Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
+        BackgroundColor3 = theme.Accent,
+        BorderSizePixel = 0,
+        Parent = track
+    })
+    local fCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(1, 0), Parent = fill})
+    BeautifulUI:RegisterThemeObject(fill, "Accent")
+
+    local value = default
+    local function setValue(val)
+        val = math.clamp(val, min, max)
+        val = math.floor(val / increment + 0.5) * increment
+        value = val
+        local percent = (val - min) / (max - min)
+        fill.Size = UDim2.new(percent, 0, 1, 0)
+        valueLabel.Text = tostring(val) .. suffix
+        callback(val)
+        BeautifulUI.Flags[flag] = {Type = "number", Value = value, SetValue = setValue}
+        BeautifulUI:SaveConfig()
+    end
+
+    local dragging = false
+    track.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            local percent = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            setValue(min + (max - min) * percent)
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local percent = math.clamp((input.Position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+            setValue(min + (max - min) * percent)
+        end
+    end)
+
+    BeautifulUI:RegisterFlag(flag, "number", default, setValue)
+
+    local element = {Name = name, Type = "Slider", Instance = frame, SetValue = setValue, GetValue = function() return value end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateInput(config)
+    config = config or {}
+    local name = config.Name or "Input"
+    local default = config.Default or ""
+    local placeholder = config.Placeholder or "Enter text..."
+    local callback = config.Callback or function() end
+    local flag = config.Flag or name
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.4, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local box = Utility.Create("TextBox", {
+        Size = UDim2.new(0.55, 0, 0, 26),
+        Position = UDim2.new(0.45, 0, 0.5, -13),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        BorderSizePixel = 0,
+        Text = default,
+        PlaceholderText = placeholder,
+        TextColor3 = theme.Text,
+        PlaceholderColor3 = theme.TextSecondary,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        ClearTextOnFocus = false,
+        Parent = frame
+    })
+    local bCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = box})
+
+    local value = default
+    local function setValue(val)
+        value = val
+        box.Text = val
+        callback(val)
+        BeautifulUI.Flags[flag] = {Type = "string", Value = value, SetValue = setValue}
+        BeautifulUI:SaveConfig()
+    end
+
+    box.FocusLost:Connect(function()
+        setValue(box.Text)
+    end)
+
+    BeautifulUI:RegisterFlag(flag, "string", default, setValue)
+
+    local element = {Name = name, Type = "Input", Instance = frame, SetValue = setValue, GetValue = function() return value end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateDropdown(config)
+    config = config or {}
+    local name = config.Name or "Dropdown"
+    local options = config.Options or {}
+    local default = config.Default or (options[1] or "")
+    local callback = config.Callback or function() end
+    local flag = config.Flag or name
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.4, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local btn = Utility.Create("TextButton", {
+        Size = UDim2.new(0.55, 0, 0, 26),
+        Position = UDim2.new(0.45, 0, 0.5, -13),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        Text = default,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        AutoButtonColor = false,
+        Parent = frame
+    })
+    local bCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = btn})
+
+    local arrow = Utility.Create("TextLabel", {
+        Size = UDim2.new(0, 20, 1, 0),
+        Position = UDim2.new(1, -20, 0, 0),
+        BackgroundTransparency = 1,
+        Text = "▼",
+        TextColor3 = theme.TextSecondary,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 10,
+        Parent = btn
+    })
+
+    local value = default
+    local expanded = false
+    local menu
+
+    local function setValue(val)
+        value = val
+        btn.Text = val
+        callback(val)
+        BeautifulUI.Flags[flag] = {Type = "string", Value = value, SetValue = setValue}
+        BeautifulUI:SaveConfig()
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        expanded = not expanded
+        if expanded then
+            menu = Utility.Create("Frame", {
+                Name = "DropdownMenu",
+                Size = UDim2.new(1, 0, 0, math.min(#options * 26, 150)),
+                Position = UDim2.new(0, 0, 1, 4),
+                BackgroundColor3 = theme.BackgroundTertiary,
+                BorderSizePixel = 0,
+                ZIndex = 30,
+                Parent = btn
+            })
+            local mCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = menu})
+            local scroll = Utility.Create("ScrollingFrame", {
+                Size = UDim2.new(1, 0, 1, 0),
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                ScrollBarThickness = 2,
+                CanvasSize = UDim2.new(0, 0, 0, #options * 26),
+                Parent = menu
+            })
+            local mLayout = Utility.Create("UIListLayout", {Parent = scroll})
+
+            for _, opt in ipairs(options) do
+                local optBtn = Utility.Create("TextButton", {
+                    Size = UDim2.new(1, 0, 0, 26),
+                    BackgroundTransparency = 1,
+                    Text = opt,
+                    TextColor3 = theme.Text,
+                    Font = BeautifulUI.Settings.Font,
+                    TextSize = 12,
+                    ZIndex = 31,
+                    Parent = scroll
+                })
+                optBtn.MouseEnter:Connect(function()
+                    Utility.Tween(optBtn, {BackgroundTransparency = 0.9}, 0.1)
+                end)
+                optBtn.MouseLeave:Connect(function()
+                    Utility.Tween(optBtn, {BackgroundTransparency = 1}, 0.1)
+                end)
+                optBtn.MouseButton1Click:Connect(function()
+                    setValue(opt)
+                    menu:Destroy()
+                    expanded = false
+                end)
+            end
+        else
+            if menu then menu:Destroy() end
+        end
+    end)
+
+    BeautifulUI:RegisterFlag(flag, "string", default, setValue)
+
+    local element = {Name = name, Type = "Dropdown", Instance = frame, SetValue = setValue, GetValue = function() return value end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateKeybind(config)
+    config = config or {}
+    local name = config.Name or "Keybind"
+    local default = config.Default or "None"
+    local callback = config.Callback or function() end
+    local flag = config.Flag or name
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.6, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local btn = Utility.Create("TextButton", {
+        Size = UDim2.new(0, 80, 0, 26),
+        Position = UDim2.new(1, -80, 0.5, -13),
+        BackgroundColor3 = theme.BackgroundTertiary,
+        Text = default,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        AutoButtonColor = false,
+        Parent = frame
+    })
+    local bCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = btn})
+
+    local value = default
+    local listening = false
+
+    local function setValue(val)
+        value = val
+        btn.Text = val
+        callback(val)
+        BeautifulUI.Flags[flag] = {Type = "string", Value = value, SetValue = setValue}
+        BeautifulUI:SaveConfig()
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        listening = true
+        btn.Text = "..."
+    end)
+
+    local conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if listening and not gameProcessed then
+            if input.UserInputType == Enum.UserInputType.Keyboard then
+                local key = tostring(input.KeyCode):gsub("Enum.KeyCode.", "")
+                setValue(key)
+                listening = false
+            end
+        elseif value ~= "None" and input.UserInputType == Enum.UserInputType.Keyboard then
+            local key = tostring(input.KeyCode):gsub("Enum.KeyCode.", "")
+            if key == value then
+                callback(value)
+            end
+        end
+    end)
+    table.insert(self.Tab.Window.Connections or {}, conn)
+
+    BeautifulUI:RegisterFlag(flag, "string", default, setValue)
+
+    local element = {Name = name, Type = "Keybind", Instance = frame, SetValue = setValue, GetValue = function() return value end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateLabel(config)
+    config = config or {}
+    local text = config.Text or "Label"
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 22),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = text,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local element = {Name = text, Type = "Label", Instance = frame, SetText = function(t) label.Text = t end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateParagraph(config)
+    config = config or {}
+    local title = config.Title or ""
+    local content = config.Content or ""
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    if title ~= "" then
+        local titleLabel = Utility.Create("TextLabel", {
+            Size = UDim2.new(1, 0, 0, 18),
+            BackgroundTransparency = 1,
+            Text = title,
+            TextColor3 = theme.Text,
+            Font = BeautifulUI.Settings.Font,
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = frame
+        })
+        BeautifulUI:RegisterThemeObject(titleLabel, "Text")
+    end
+
+    local contentLabel = Utility.Create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 0),
+        Position = UDim2.new(0, 0, 0, title ~= "" and 20 or 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Text = content,
+        TextColor3 = theme.TextSecondary,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextWrapped = true,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(contentLabel, "TextSecondary")
+
+    local element = {Name = title, Type = "Paragraph", Instance = frame, SetText = function(t) contentLabel.Text = t end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+function Section:CreateColorPicker(config)
+    config = config or {}
+    local name = config.Name or "Color Picker"
+    local default = config.Default or Color3.fromRGB(255, 0, 0)
+    local callback = config.Callback or function() end
+    local flag = config.Flag or name
+
+    local theme = BeautifulUI:GetTheme()
+    local frame = Utility.Create("Frame", {
+        Size = UDim2.new(1, 0, 0, 34),
+        BackgroundTransparency = 1,
+        LayoutOrder = #self.Elements + 1,
+        Parent = self.ElementContainer
+    })
+
+    local label = Utility.Create("TextLabel", {
+        Size = UDim2.new(0.6, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = name,
+        TextColor3 = theme.Text,
+        Font = BeautifulUI.Settings.Font,
+        TextSize = 13,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = frame
+    })
+    BeautifulUI:RegisterThemeObject(label, "Text")
+
+    local preview = Utility.Create("TextButton", {
+        Size = UDim2.new(0, 60, 0, 24),
+        Position = UDim2.new(1, -60, 0.5, -12),
+        BackgroundColor3 = default,
+        Text = "",
+        AutoButtonColor = false,
+        Parent = frame
+    })
+    local pCorner = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 4), Parent = preview})
+
+    local value = default
+    local function setValue(val)
+        value = val
+        preview.BackgroundColor3 = val
+        callback(val)
+        BeautifulUI.Flags[flag] = {Type = "Color3", Value = value, SetValue = setValue}
+        BeautifulUI:SaveConfig()
+    end
+
+    preview.MouseButton1Click:Connect(function()
+        local picker = Utility.Create("Frame", {
+            Size = UDim2.new(0, 200, 0, 120),
+            Position = UDim2.new(0, -140, 1, 4),
+            BackgroundColor3 = theme.BackgroundSecondary,
+            BorderSizePixel = 0,
+            ZIndex = 30,
+            Parent = preview
+        })
+        local pCorner2 = Utility.Create("UICorner", {CornerRadius = UDim.new(0, 8), Parent = picker})
+
+        local rBox = Utility.Create("TextBox", {
+            Size = UDim2.new(0, 50, 0, 22),
+            Position = UDim2.new(0, 10, 0, 10),
+            BackgroundColor3 = theme.BackgroundTertiary,
+            Text = tostring(math.floor(value.R * 255)),
+            TextColor3 = theme.Text,
+            Font = BeautifulUI.Settings.Font,
+            TextSize = 12,
+            Parent = picker
+        })
+        local gBox = Utility.Create("TextBox", {
+            Size = UDim2.new(0, 50, 0, 22),
+            Position = UDim2.new(0, 70, 0, 10),
+            BackgroundColor3 = theme.BackgroundTertiary,
+            Text = tostring(math.floor(value.G * 255)),
+            TextColor3 = theme.Text,
+            Font = BeautifulUI.Settings.Font,
+            TextSize = 12,
+            Parent = picker
+        })
+        local bBox = Utility.Create("TextBox", {
+            Size = UDim2.new(0, 50, 0, 22),
+            Position = UDim2.new(0, 130, 0, 10),
+            BackgroundColor3 = theme.BackgroundTertiary,
+            Text = tostring(math.floor(value.B * 255)),
+            TextColor3 = theme.Text,
+            Font = BeautifulUI.Settings.Font,
+            TextSize = 12,
+            Parent = picker
+        })
+
+        local function updateFromRGB()
+            local r = math.clamp(tonumber(rBox.Text) or 0, 0, 255) / 255
+            local g = math.clamp(tonumber(gBox.Text) or 0, 0, 255) / 255
+            local b = math.clamp(tonumber(bBox.Text) or 0, 0, 255) / 255
+            setValue(Color3.new(r, g, b))
+        end
+
+        rBox.FocusLost:Connect(updateFromRGB)
+        gBox.FocusLost:Connect(updateFromRGB)
+        bBox.FocusLost:Connect(updateFromRGB)
+
+        local doneBtn = Utility.Create("TextButton", {
+            Size = UDim2.new(0, 60, 0, 22),
+            Position = UDim2.new(0.5, -30, 1, -32),
+            BackgroundColor3 = theme.Accent,
+            Text = "Done",
+            TextColor3 = Color3.new(1,1,1),
+            Font = BeautifulUI.Settings.Font,
+            TextSize = 12,
+            Parent = picker
+        })
+        doneBtn.MouseButton1Click:Connect(function()
+            picker:Destroy()
+        end)
+    end)
+
+    BeautifulUI:RegisterFlag(flag, "Color3", default, setValue)
+
+    local element = {Name = name, Type = "ColorPicker", Instance = frame, SetValue = setValue, GetValue = function() return value end}
+    table.insert(self.Elements, element)
+    return element
+end
+
+--// Cleanup
+function Window:Unload()
+    for _, conn in ipairs(self.Connections or {}) do
+        if typeof(conn) == "RBXScriptConnection" then
+            conn:Disconnect()
+        end
+    end
+    self.ScreenGui:Destroy()
+    for i, w in ipairs(BeautifulUI.Windows) do
+        if w == self then
+            table.remove(BeautifulUI.Windows, i)
+            break
+        end
+    end
+end
+
+--// Mobile Support
+if UserInputService.TouchEnabled then
+    BeautifulUI.Mobile = true
+end
+
+--// Auto-load config
+pcall(function()
+    BeautifulUI:LoadConfig()
+end)
+
+return BeautifulUI
