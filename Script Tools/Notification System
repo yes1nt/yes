@@ -331,7 +331,7 @@ function Notification.new(title, caption, lifespan, notifType, callback)
            input.UserInputType == Enum.UserInputType.Touch then
             if self.Callback then
                 self.Callback()
-                self.Callback = function() end
+                self.Callback = nil
             end
             self:Dismiss()
         end
