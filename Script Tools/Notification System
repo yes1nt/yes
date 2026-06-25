@@ -129,7 +129,7 @@ end
 -- ============================================
 -- NOTIFICATION METHODS
 -- ============================================
-function Notification.new(title, caption, lifespan, notifType)
+function Notification.new(title, caption, lifespan, notifType, callback)
     EnsureUI()
     
     local self = setmetatable({}, Notification)
@@ -139,6 +139,7 @@ function Notification.new(title, caption, lifespan, notifType)
     self.Caption = caption or ""
     self.Lifespan = lifespan or CONFIG.DefaultLifespan
     self.Type = notifType or "Info"
+    self.Callback = callback
     self.IsDestroyed = false
     self.Connections = {} -- Track connections for cleanup
     
@@ -328,6 +329,9 @@ function Notification.new(title, caption, lifespan, notifType)
     local clickConnection = self.Frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or 
            input.UserInputType == Enum.UserInputType.Touch then
+            if self.Callback then
+                self.Callback()
+            end
             self:Dismiss()
         end
     end)
@@ -419,24 +423,24 @@ LocalPlayer.CharacterRemoving:Connect(CleanupAll)
 -- ============================================
 local PremiumNotify = {}
 
-function PremiumNotify.Notify(title, caption, lifespan, notifType)
-    return Notification.new(title, "\n\n"..caption, lifespan, notifType)
+function PremiumNotify.Notify(title, caption, lifespan, notifType, callback)
+    return Notification.new(title, "\n\n"..caption, lifespan, notifType, callback)
 end
 
-function PremiumNotify.Success(title, caption, lifespan)
-    return Notification.new(title, "\n\n"..caption, lifespan, "Success")
+function PremiumNotify.Success(title, caption, lifespan, callback)
+    return Notification.new(title, "\n\n"..caption, lifespan, "Success", callback)
 end
 
-function PremiumNotify.Error(title, caption, lifespan)
-    return Notification.new(title, "\n\n"..caption, lifespan, "Error")
+function PremiumNotify.Error(title, caption, lifespan, callback)
+    return Notification.new(title, "\n\n"..caption, lifespan, "Error", callback)
 end
 
-function PremiumNotify.Warning(title, caption, lifespan)
-    return Notification.new(title, "\n\n"..caption, lifespan, "Warning")
+function PremiumNotify.Warning(title, caption, lifespan, callback)
+    return Notification.new(title, "\n\n"..caption, lifespan, "Warning", callback)
 end
 
-function PremiumNotify.Info(title, caption, lifespan)
-    return Notification.new(title, "\n\n"..caption, lifespan, "Info")
+function PremiumNotify.Info(title, caption, lifespan, callback)
+    return Notification.new(title, "\n\n"..caption, lifespan, "Info", callback)
 end
 
 function PremiumNotify.ClearAll()
