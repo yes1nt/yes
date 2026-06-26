@@ -1,4 +1,4 @@
-print("B")
+print("C")
 --[[
 FORK OF https://github.com/Nebula-Softworks/Luna-Interface-Suite/tree/master
 MODIFIED BY Friedpotatomatoe for personal and public use.
@@ -2531,6 +2531,13 @@ function Luna:CreateWindow(WindowSettings)
 		wait(0.3)
 		TweenService:Create(LoadingFrame, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
 	end
+
+    if WindowSettings.GuiSize then
+        local Scale = Instance.new("UIScale")
+        Scale.Parent = Window.Parent
+        Scale.Scale = WindowSettings.GuiSize
+    end
+    
 
 	TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {BackgroundTransparency = 0.2, Size = MainSize}):Play()
 	TweenService:Create(Main.Parent.ShadowHolder, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = MainSize}):Play()
