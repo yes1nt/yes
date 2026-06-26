@@ -2379,6 +2379,12 @@ function Luna:CreateWindow(WindowSettings)
 
 	BlurModule(Main)
 
+    if WindowSettings.GuiSize then
+        local Scale = Instance.new("UIScale")
+        Scale.Parent = Main.Parent
+        Scale.Scale = WindowSettings.GuiSize
+    end
+
 	if WindowSettings.KeySystem then
 		local KeySettings = WindowSettings.KeySettings
 		
@@ -2531,13 +2537,6 @@ function Luna:CreateWindow(WindowSettings)
 		wait(0.3)
 		TweenService:Create(LoadingFrame, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
 	end
-
-    if WindowSettings.GuiSize then
-        local Scale = Instance.new("UIScale")
-        Scale.Parent = Main.Parent
-        Scale.Scale = WindowSettings.GuiSize
-    end
-    
 
 	TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {BackgroundTransparency = 0.2, Size = MainSize}):Play()
 	TweenService:Create(Main.Parent.ShadowHolder, TweenInfo.new(0.5, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {Size = MainSize}):Play()
