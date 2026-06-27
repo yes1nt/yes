@@ -2,6 +2,9 @@ print("C")
 --[[
 FORK OF https://github.com/Nebula-Softworks/Luna-Interface-Suite/tree/master
 MODIFIED BY Friedpotatomatoe for personal and public use.
+IS NOT DONE!!
+Modifications so far:
+GUI resize in settings (Supports Dragging)
 
 BSD 3-Clause License
 
