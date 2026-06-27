@@ -1987,7 +1987,7 @@ local Navigation = Main.Navigation
 local Tabs = Navigation.Tabs
 local Notifications = LunaUI.Notifications
 local KeySystem : Frame = Main.KeySystem
-Luna.UI = Main.Parent
+Luna.UI = Main
 
 -- local function LoadConfiguration(Configuration, autoload)
 -- 	local Data = HttpService:JSONDecode(Configuration)
@@ -2143,7 +2143,6 @@ local function Draggable(Bar, Window, enableTaptic, tapticOffset)
 end
 
 function Luna:Notification(data) -- action e.g open messages
-    if not Luna.UI.Parent then return end
 	task.spawn(function()
 		data = Kwargify({
 			Title = "Missing Title",
@@ -2654,7 +2653,6 @@ function Luna:CreateWindow(WindowSettings)
 		local function getPing() return math.clamp(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue(), 10, 700) end
 
 		local function checkFriends()
-            if not Luna.UI.Parent then return end
 			if friendsCooldown == 0 then
 
 				friendsCooldown = 25
@@ -6721,7 +6719,7 @@ function Luna:CreateWindow(WindowSettings)
 		tween(Main.Controls.Close.ImageLabel, {ImageColor3 = Color3.fromRGB(195,195,195)})
 	end)
 
-	local WindowToggler = UserInputService.InputBegan:Connect(function(input, gpe)
+	UserInputService.InputBegan:Connect(function(input, gpe)
 		if gpe then return end
 		if Window.State then return end
 		if input.KeyCode == Window.Bind then
@@ -6731,10 +6729,6 @@ function Luna:CreateWindow(WindowSettings)
 			Window.State = true
 		end
 	end)
-    task.spawn(function()
-        repeat task.wait() until not Luna.UI.Parent
-        WindowToggler:Disconnect()
-    end)
 
 	Main.Logo.MouseButton1Click:Connect(function()
 		if Navigation.Size.X.Offset == 205 then
