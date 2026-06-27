@@ -6719,7 +6719,7 @@ function Luna:CreateWindow(WindowSettings)
 		tween(Main.Controls.Close.ImageLabel, {ImageColor3 = Color3.fromRGB(195,195,195)})
 	end)
 
-	UserInputService.InputBegan:Connect(function(input, gpe)
+	local WindowToggler = UserInputService.InputBegan:Connect(function(input, gpe)
 		if gpe then return end
 		if Window.State then return end
 		if input.KeyCode == Window.Bind then
@@ -6729,6 +6729,10 @@ function Luna:CreateWindow(WindowSettings)
 			Window.State = true
 		end
 	end)
+    task.spawn(function()
+        repeat task.wait() until not Luna.UI.Parent
+        WindowToggler:Disconnect()
+    end)
 
 	Main.Logo.MouseButton1Click:Connect(function()
 		if Navigation.Size.X.Offset == 205 then
