@@ -2143,6 +2143,7 @@ local function Draggable(Bar, Window, enableTaptic, tapticOffset)
 end
 
 function Luna:Notification(data) -- action e.g open messages
+    if not Luna.UI.Parent then return end
 	task.spawn(function()
 		data = Kwargify({
 			Title = "Missing Title",
@@ -2653,6 +2654,7 @@ function Luna:CreateWindow(WindowSettings)
 		local function getPing() return math.clamp(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue(), 10, 700) end
 
 		local function checkFriends()
+            if not Luna.UI.Parent then return end
 			if friendsCooldown == 0 then
 
 				friendsCooldown = 25
