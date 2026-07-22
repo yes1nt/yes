@@ -7,13 +7,12 @@ local success, shouldSkip = pcall(function()
 	if isfile(FILE) then
 		count = tonumber(readfile(FILE)) or 0
 	end
-	count += 1
-	writefile(FILE, tostring(count))
-	if count < 10 then
-		return true
+	if count % 10 == 0 then
+		writefile(FILE, tostring(count + 1))
+		return false
 	end
-	writefile(FILE, "0")
-	return false
+	writefile(FILE, tostring(count + 1))
+	return true
 end)
 if success and shouldSkip then
 	return
