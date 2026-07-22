@@ -1,8 +1,4 @@
--- ============================================
--- PREMIUM ADVERTISEMENT GUI
--- FIXED SCROLL VERSION
--- PART 1/2
--- ============================================
+if getgenv().Password then return end
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
