@@ -1,7 +1,5 @@
 if getgenv().Password then return end
 
-pcall(function()
-
 local fileName = "execute_count.txt"
 local count = 0
 if isfile(fileName) then
@@ -279,6 +277,3 @@ close.MouseButton1Click:Once(function()
 	screenGui:Destroy()
 end)
 repeat task.wait() until not screenGui.Parent
-
-end)
-
