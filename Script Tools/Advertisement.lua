@@ -1,16 +1,23 @@
-if getgenv().Password then return end
-
-local fileName = "execute_count.txt"
-local count = 0
-if isfile(fileName) then
-	count = tonumber(readfile(fileName)) or 0
-end
-count += 1
-writefile(fileName, tostring(count))
-if count < 10 then
+if getgenv().Password then
 	return
 end
-writefile(fileName, "0")
+local FILE = "execute_count.txt"
+local success, shouldSkip = pcall(function()
+	local count = 0
+	if isfile(FILE) then
+		count = tonumber(readfile(FILE)) or 0
+	end
+	count += 1
+	writefile(FILE, tostring(count))
+	if count < 10 then
+		return true
+	end
+	writefile(FILE, "0")
+	return false
+end)
+if success and shouldSkip then
+	return
+end
 
 
 
