@@ -8,20 +8,27 @@ if getgenv().IdleChainsawVolumeChanged then return end
 getgenv().IdleChainsawVolumeChanged = true
 local TARGET_ID = "rbxassetid://6015692344"
 local function UpdateSound(sound)
-	if not sound:IsA("Sound") then
+	if not sound:IsA("Sound") or sound.Name == "SoundVolumeChanged" then
 		return
 	end
 	if sound.SoundId == TARGET_ID then
-		sound.Volume = (getgenv().IdleChainsawVolume or 1) * 4
+        local parent = sound.Parent
+        local clone = sound:Clone()
+        sound.PlaybackSpeed = 0
+        clone.Name = "SoundVolumeChanged"
+        clone.Looped = true
+        clone.Volume = (getgenv().IdleChainsawVolume or 1) * 4
+        clone.Parent = parent
+        clone:Play()
+        sound.Destroying:Once(function()
+            clone:Destroy()
+        end)
 	end
 end
-local sounds = workspace:QueryDescendants(function(desc)
-	return desc:IsA("Sound") and desc.SoundId == TARGET_ID
-end)
-for _, sound in ipairs(sounds) do
-	UpdateSound(sound)
+for _, sound in pairs(workspace:GetChildren()) do
+    UpdateSound(sound)
 end
-workspace.DescendantAdded:Connect(function(sound)
+workspace.ChildAdded:Connect(function(sound)
     task.defer(function()
         UpdateSound(sound)
     end)
