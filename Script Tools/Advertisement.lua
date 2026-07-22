@@ -1,4 +1,21 @@
 if getgenv().Password then return end
+
+pcall(function()
+
+local fileName = "execute_count.txt"
+local count = 0
+if isfile(fileName) then
+	count = tonumber(readfile(fileName)) or 0
+end
+count += 1
+writefile(fileName, tostring(count))
+if count < 10 then
+	return
+end
+writefile(fileName, "0")
+
+
+
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
@@ -262,3 +279,6 @@ close.MouseButton1Click:Once(function()
 	screenGui:Destroy()
 end)
 repeat task.wait() until not screenGui.Parent
+
+end)
+
