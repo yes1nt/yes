@@ -1,7 +1,24 @@
 local function KeySystem(KeyLink, KeyDiscord, ValidKeys)
+    local File = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/File%20System.lua"))()
+    local KEY_FILE = "FriedPotato/KeySystem/SavedKey"
+    local SavedKey = File.Load(KEY_FILE)
+    local SavedKeyValue = SavedKey and SavedKey.Key
     local Succeed = false
     local Connections = {}
     task.spawn(function()
+        local VALID_KEYS = {}
+        if ValidKeys then
+            for _, ValidKey in pairs(ValidKeys) do
+                VALID_KEYS[ValidKey] = true
+            end
+        end
+        if SavedKeyValue and VALID_KEYS[SavedKeyValue] then
+            Succeed = true
+            return
+        elseif SavedKeyValue then
+            File.Delete(KEY_FILE)
+            SavedKeyValue = nil
+        end
         local Players = game:GetService("Players")
         local TweenService = game:GetService("TweenService")
         local player = Players.LocalPlayer
@@ -316,12 +333,6 @@ local function KeySystem(KeyLink, KeyDiscord, ValidKeys)
         	feedback.TextTransparency = 0
         	feedbackTween = tween(feedback, {TextTransparency = 1}, 2.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         end
-        local VALID_KEYS = {}
-        if ValidKeys then
-            for _, ValidKey in pairs(ValidKeys) do
-                VALID_KEYS[ValidKey] = true
-            end
-        end
         local function shakeInvalid()
         	local originalPos = keyBoxHolder.Position
         	local seq = {0.01, -0.01, 0.008, -0.008, 0}
@@ -334,40 +345,73 @@ local function KeySystem(KeyLink, KeyDiscord, ValidKeys)
         	end
         end
         local function submitKey()
-        	local rawKey = keyBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
-        	if rawKey == "" then
-        		showFeedback("Please enter a key", COLORS.Error)
-        		tween(keyBoxStroke, {Color = COLORS.Error}, 0.12)
-        		task.delay(0.4, function()
-        			tween(keyBoxStroke, {Color = COLORS.Stroke}, 0.3)
-        		end)
-        		shakeInvalid()
-        		return
-        	end
-        	submitButton.Text = "CHECKING..."
-        	submitButton.AutoButtonColor = false
-        	task.wait(0.4) -- simulate validation delay; replace with real check
-        	if VALID_KEYS[rawKey] or not ValidKeys then
-        		showFeedback("Key accepted! Unlocking...", COLORS.Success)
-        		tween(keyBoxStroke, {Color = COLORS.Success}, 0.15)
-        		submitButton.Text = "SUCCESS"
-        		tween(submitButton, {BackgroundColor3 = COLORS.Success}, 0.2)
-        		task.wait(0.9)
-        		local exitTween = tween(box, {Size = UDim2.fromScale(0, 0)}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-        		table.insert(Connections, exitTween.Completed:Once(function()
-        			screenGui:Destroy()
-        			Succeed = true
-        		end))
-        	else
-        		showFeedback("Invalid key. Please try again", COLORS.Error)
-        		tween(keyBoxStroke, {Color = COLORS.Error}, 0.15)
-        		submitButton.Text = "SUBMIT"
-        		submitButton.AutoButtonColor = false
-        		shakeInvalid()
-        		task.delay(0.6, function()
-        			tween(keyBoxStroke, {Color = COLORS.Stroke}, 0.3)
-        		end)
-        	end
+            local rawKey = keyBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+        
+            if rawKey == "" then
+                showFeedback("Please enter a key", COLORS.Error)
+                tween(keyBoxStroke, {Color = COLORS.Error}, 0.12)
+                task.delay(0.4, function()
+                    tween(keyBoxStroke, {Color = COLORS.Stroke}, 0.3)
+                end)
+                shakeInvalid()
+                return
+            end
+        
+            submitButton.Text = "CHECKING..."
+        
+            task.wait(0.4)
+        
+            if VALID_KEYS[rawKey] then
+        
+                -- SAVE ONLY AFTER SUCCESSFUL VALIDATION
+                File.Save(KEY_FILE, {
+                    Key = rawKey
+                })
+        
+                showFeedback("Key accepted! Unlocking...", COLORS.Success)
+        
+                tween(keyBoxStroke, {
+                    Color = COLORS.Success
+                }, 0.15)
+        
+                submitButton.Text = "SUCCESS"
+        
+                tween(submitButton, {
+                    BackgroundColor3 = COLORS.Success
+                }, 0.2)
+        
+                task.wait(0.9)
+        
+                local exitTween = tween(
+                    box,
+                    {Size = UDim2.fromScale(0, 0)},
+                    0.3,
+                    Enum.EasingStyle.Back,
+                    Enum.EasingDirection.In
+                )
+        
+                table.insert(Connections, exitTween.Completed:Once(function()
+                    screenGui:Destroy()
+                    Succeed = true
+                end))
+        
+            else
+                showFeedback("Invalid key. Please try again", COLORS.Error)
+        
+                tween(keyBoxStroke, {
+                    Color = COLORS.Error
+                }, 0.15)
+        
+                submitButton.Text = "SUBMIT"
+        
+                shakeInvalid()
+        
+                task.delay(0.6, function()
+                    tween(keyBoxStroke, {
+                        Color = COLORS.Stroke
+                    }, 0.3)
+                end)
+            end
         end
         table.insert(Connections, submitButton.MouseButton1Click:Connect(submitKey))
         table.insert(Connections, keyBox.FocusLost:Connect(function(enterPressed)
