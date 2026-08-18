@@ -1,0 +1,406 @@
+local function KeySystem(KeyLink, KeyDiscord, ValidKeys)
+    local Succeed = false
+    local Connections = {}
+    task.spawn(function()
+        local Players = game:GetService("Players")
+        local TweenService = game:GetService("TweenService")
+        local player = Players.LocalPlayer
+        local playerGui = player:WaitForChild("PlayerGui")
+        local camera = workspace.CurrentCamera
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "KeySystem"
+        screenGui.IgnoreGuiInset = true
+        screenGui.ResetOnSpawn = false
+        screenGui.Parent = playerGui
+        local box = Instance.new("Frame")
+        box.Name = "MainBox"
+        box.AnchorPoint = Vector2.new(0.5, 0.5)
+        box.Position = UDim2.fromScale(0.5, 0.5)
+        box.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        box.BorderSizePixel = 0
+        box.BackgroundTransparency = 1
+        box.Parent = screenGui
+        local function updateBox()
+        	local viewport = camera.ViewportSize
+        	local margin = 0.7
+        	local aspectRatio = 2
+        	local maxWidth = viewport.X * margin
+        	local maxHeight = viewport.Y * margin
+        	local width = math.min(maxWidth, maxHeight * aspectRatio)
+        	local height = width / aspectRatio
+        	box.Size = UDim2.fromScale(width / viewport.X, height / viewport.Y)
+        end
+        updateBox()
+        table.insert(Connections, camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateBox))
+        local COLORS = {
+        	Background   = Color3.fromRGB(18, 18, 24),
+        	Panel        = Color3.fromRGB(24, 24, 32),
+        	Accent       = Color3.fromRGB(120, 90, 255),
+        	AccentHover  = Color3.fromRGB(140, 110, 255),
+        	Text         = Color3.fromRGB(240, 240, 245),
+        	SubText      = Color3.fromRGB(160, 160, 175),
+        	Stroke       = Color3.fromRGB(60, 60, 75),
+        	Success      = Color3.fromRGB(90, 220, 140),
+        	Error        = Color3.fromRGB(235, 90, 100),
+        	Discord      = Color3.fromRGB(88, 101, 242),
+        }
+        local function tween(obj, props, time, style, dir)
+        	local t = TweenService:Create(
+        		obj,
+        		TweenInfo.new(time or 0.18, style or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out),
+        		props
+        	)
+        	t:Play()
+        	return t
+        end
+        local function corner(parent, radiusScale)
+        	local c = Instance.new("UICorner")
+        	c.CornerRadius = UDim.new(radiusScale or 0.12, 0)
+        	c.Parent = parent
+        	return c
+        end
+        local function stroke(parent, color, thickness, transparency)
+        	local s = Instance.new("UIStroke")
+        	s.Color = color or COLORS.Stroke
+        	s.Thickness = thickness or 1
+        	s.Transparency = transparency or 0
+        	s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        	s.Parent = parent
+        	return s
+        end
+        local function gradient(parent, colorSeq, rotation)
+        	local g = Instance.new("UIGradient")
+        	g.Color = colorSeq
+        	g.Rotation = rotation or 90
+        	g.Parent = parent
+        	return g
+        end
+        local panel = Instance.new("Frame")
+        panel.Name = "Panel"
+        panel.BackgroundColor3 = COLORS.Background
+        panel.BorderSizePixel = 0
+        panel.Size = UDim2.fromScale(1, 1)
+        panel.ClipsDescendants = true
+        panel.Parent = box
+        corner(panel, 0.06)
+        stroke(panel, COLORS.Stroke, 1, 0.3)
+        local shadow = Instance.new("ImageLabel")
+        shadow.Name = "Shadow"
+        shadow.BackgroundTransparency = 1
+        shadow.Image = "rbxassetid://1316045217"
+        shadow.ImageColor3 = Color3.new(0, 0, 0)
+        shadow.ImageTransparency = 0.55
+        shadow.ScaleType = Enum.ScaleType.Slice
+        shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+        shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+        shadow.Position = UDim2.fromScale(0.5, 0.52)
+        shadow.Size = UDim2.fromScale(1.12, 1.18)
+        shadow.ZIndex = -1
+        shadow.Parent = box
+        local topGlow = Instance.new("Frame")
+        topGlow.Name = "TopGlow"
+        topGlow.BackgroundColor3 = COLORS.Accent
+        topGlow.BorderSizePixel = 0
+        topGlow.AnchorPoint = Vector2.new(0.5, 0)
+        topGlow.Position = UDim2.fromScale(0.5, 0)
+        topGlow.Size = UDim2.fromScale(1, 0.35)
+        topGlow.ZIndex = 1
+        topGlow.Parent = panel
+        gradient(topGlow, ColorSequence.new{
+        	ColorSequenceKeypoint.new(0, COLORS.Accent),
+        	ColorSequenceKeypoint.new(1, COLORS.Background),
+        }, 90)
+        topGlow.BackgroundTransparency = 0.85
+        local content = Instance.new("Frame")
+        content.Name = "Content"
+        content.BackgroundTransparency = 1
+        content.Size = UDim2.fromScale(0.88, 0.86)
+        content.AnchorPoint = Vector2.new(0.5, 0.5)
+        content.Position = UDim2.fromScale(0.5, 0.5)
+        content.ZIndex = 2
+        content.Parent = panel
+        local layout = Instance.new("UIListLayout")
+        layout.FillDirection = Enum.FillDirection.Vertical
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout.Padding = UDim.new(0.03, 0)
+        layout.Parent = content
+        local title = Instance.new("TextLabel")
+        title.Name = "Title"
+        title.BackgroundTransparency = 1
+        title.Size = UDim2.new(1, 0, 0.16, 0)
+        title.Text = "KEY SYSTEM"
+        title.TextColor3 = COLORS.Text
+        title.Font = Enum.Font.GothamBlack
+        title.TextScaled = true
+        title.LayoutOrder = 1
+        title.Parent = content
+        local titleSizeConstraint = Instance.new("UITextSizeConstraint")
+        titleSizeConstraint.MaxTextSize = 28
+        titleSizeConstraint.MinTextSize = 12
+        titleSizeConstraint.Parent = title
+        local subtitle = Instance.new("TextLabel")
+        subtitle.Name = "Subtitle"
+        subtitle.BackgroundTransparency = 1
+        subtitle.Size = UDim2.new(1, 0, 0.1, 0)
+        subtitle.Text = "Enter your key below to unlock access"
+        subtitle.TextColor3 = COLORS.SubText
+        subtitle.Font = Enum.Font.Gotham
+        subtitle.TextScaled = true
+        subtitle.LayoutOrder = 2
+        subtitle.Parent = content
+        local subSizeConstraint = Instance.new("UITextSizeConstraint")
+        subSizeConstraint.MaxTextSize = 14
+        subSizeConstraint.MinTextSize = 9
+        subSizeConstraint.Parent = subtitle
+        local spacer1 = Instance.new("Frame")
+        spacer1.BackgroundTransparency = 1
+        spacer1.Size = UDim2.new(1, 0, 0.02, 0)
+        spacer1.LayoutOrder = 3
+        spacer1.Parent = content
+        local keyBoxHolder = Instance.new("Frame")
+        keyBoxHolder.Name = "KeyBoxHolder"
+        keyBoxHolder.BackgroundColor3 = COLORS.Panel
+        keyBoxHolder.Size = UDim2.new(1, 0, 0.16, 0)
+        keyBoxHolder.LayoutOrder = 4
+        keyBoxHolder.Parent = content
+        corner(keyBoxHolder, 0.25)
+        local keyBoxStroke = stroke(keyBoxHolder, COLORS.Stroke, 1.2, 0.1)
+        local keyBox = Instance.new("TextBox")
+        keyBox.Name = "KeyInput"
+        keyBox.BackgroundTransparency = 1
+        keyBox.Size = UDim2.fromScale(0.9, 0.8)
+        keyBox.AnchorPoint = Vector2.new(0.5, 0.5)
+        keyBox.Position = UDim2.fromScale(0.5, 0.5)
+        keyBox.PlaceholderText = "Enter key here..."
+        keyBox.PlaceholderColor3 = COLORS.SubText
+        keyBox.Text = ""
+        keyBox.TextColor3 = COLORS.Text
+        keyBox.Font = Enum.Font.GothamMedium
+        keyBox.TextScaled = true
+        keyBox.ClearTextOnFocus = false
+        keyBox.Parent = keyBoxHolder
+        local keyBoxTextConstraint = Instance.new("UITextSizeConstraint")
+        keyBoxTextConstraint.MaxTextSize = 16
+        keyBoxTextConstraint.MinTextSize = 10
+        keyBoxTextConstraint.Parent = keyBox
+        table.insert(Connections, keyBox.Focused:Connect(function()
+        	tween(keyBoxStroke, {Color = COLORS.Accent, Transparency = 0}, 0.15)
+        end))
+        table.insert(Connections, keyBox.FocusLost:Connect(function()
+        	tween(keyBoxStroke, {Color = COLORS.Stroke, Transparency = 0.1}, 0.15)
+        end))
+        local feedback = Instance.new("TextLabel")
+        feedback.Name = "Feedback"
+        feedback.BackgroundTransparency = 1
+        feedback.Size = UDim2.new(1, 0, 0.07, 0)
+        feedback.Text = ""
+        feedback.TextColor3 = COLORS.SubText
+        feedback.Font = Enum.Font.GothamMedium
+        feedback.TextScaled = true
+        feedback.TextTransparency = 1
+        feedback.LayoutOrder = 5
+        feedback.Parent = content
+        local feedbackConstraint = Instance.new("UITextSizeConstraint")
+        feedbackConstraint.MaxTextSize = 13
+        feedbackConstraint.MinTextSize = 9
+        feedbackConstraint.Parent = feedback
+        local submitButton = Instance.new("TextButton")
+        submitButton.Name = "SubmitButton"
+        submitButton.AutoButtonColor = false
+        submitButton.BackgroundColor3 = COLORS.Accent
+        submitButton.Size = UDim2.new(1, 0, 0.16, 0)
+        submitButton.Text = "SUBMIT"
+        submitButton.TextColor3 = Color3.new(1, 1, 1)
+        submitButton.Font = Enum.Font.GothamBold
+        submitButton.TextScaled = true
+        submitButton.LayoutOrder = 6
+        submitButton.Parent = content
+        corner(submitButton, 0.25)
+        local submitTextConstraint = Instance.new("UITextSizeConstraint")
+        submitTextConstraint.MaxTextSize = 16
+        submitTextConstraint.MinTextSize = 10
+        submitTextConstraint.Parent = submitButton
+        gradient(submitButton, ColorSequence.new{
+        	ColorSequenceKeypoint.new(0, COLORS.Accent),
+        	ColorSequenceKeypoint.new(1, COLORS.AccentHover),
+        }, 0)
+        local row = Instance.new("Frame")
+        row.Name = "LinkRow"
+        row.BackgroundTransparency = 1
+        row.Size = UDim2.new(1, 0, 0.14, 0)
+        row.LayoutOrder = 7
+        row.Parent = content
+        local rowLayout = Instance.new("UIListLayout")
+        rowLayout.FillDirection = Enum.FillDirection.Horizontal
+        rowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        rowLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+        rowLayout.Padding = UDim.new(0.04, 0)
+        rowLayout.Parent = row
+        local function makeLinkButton(name, text, color, order)
+        	local btn = Instance.new("TextButton")
+        	btn.Name = name
+        	btn.AutoButtonColor = false
+        	btn.BackgroundColor3 = COLORS.Panel
+        	btn.Size = UDim2.new(0.48, 0, 1, 0)
+        	btn.Text = text
+        	btn.TextColor3 = color
+        	btn.Font = Enum.Font.GothamMedium
+        	btn.TextScaled = true
+        	btn.LayoutOrder = order
+        	btn.Parent = row
+        	corner(btn, 0.25)
+        	local s = stroke(btn, color, 1.1, 0.4)
+        	local tc = Instance.new("UITextSizeConstraint")
+        	tc.MaxTextSize = 13
+        	tc.MinTextSize = 8
+        	tc.Parent = btn
+        	return btn, s
+        end
+        local getKeyButton, getKeyStroke = makeLinkButton("GetKeyButton", "Get Key", COLORS.Accent, 1)
+        local discordButton, discordStroke = makeLinkButton("DiscordButton", "Discord", COLORS.Discord, 2)
+        local function bindButtonAnimations(btn, baseColor, hoverColor)
+        	local originalSize = btn.Size
+        	local pressedSize = UDim2.new(
+        		originalSize.X.Scale * 0.96, originalSize.X.Offset,
+        		originalSize.Y.Scale * 0.94, originalSize.Y.Offset
+        	)
+        	local isPressed = false
+        
+        	table.insert(Connections, btn.MouseEnter:Connect(function()
+        		tween(btn, {BackgroundColor3 = hoverColor}, 0.15)
+        	end))
+        	table.insert(Connections, btn.MouseLeave:Connect(function()
+        		tween(btn, {BackgroundColor3 = baseColor}, 0.15)
+        		if isPressed then
+        			isPressed = false
+        			tween(btn, {Size = originalSize}, 0.08)
+        		end
+        	end))
+        	table.insert(Connections, btn.MouseButton1Down:Connect(function()
+        		isPressed = true
+        		tween(btn, {Size = pressedSize}, 0.08)
+        	end))
+        	table.insert(Connections, btn.MouseButton1Up:Connect(function()
+        		isPressed = false
+        		tween(btn, {Size = originalSize}, 0.08)
+        	end))
+        end
+        
+        bindButtonAnimations(submitButton, COLORS.Accent, COLORS.AccentHover)
+        
+        local function bindOutlineHover(btn, strokeObj, color)
+        	table.insert(Connections, btn.MouseEnter:Connect(function()
+        		tween(strokeObj, {Transparency = 0}, 0.15)
+        		tween(btn, {BackgroundColor3 = Color3.fromRGB(
+        			math.min(COLORS.Panel.R * 255 + 8, 255),
+        			math.min(COLORS.Panel.G * 255 + 8, 255),
+        			math.min(COLORS.Panel.B * 255 + 8, 255)
+        		)}, 0.15)
+        	end))
+        	table.insert(Connections, btn.MouseLeave:Connect(function()
+        		tween(strokeObj, {Transparency = 0.4}, 0.15)
+        		tween(btn, {BackgroundColor3 = COLORS.Panel}, 0.15)
+        	end))
+        end
+        
+        bindOutlineHover(getKeyButton, getKeyStroke, COLORS.Accent)
+        bindOutlineHover(discordButton, discordStroke, COLORS.Discord)
+        
+        -- ---------- Feedback helper ----------
+        local feedbackTween = nil
+        local function showFeedback(text, color)
+        	if feedbackTween then feedbackTween:Cancel() end
+        	feedback.Text = text
+        	feedback.TextColor3 = color
+        	feedback.TextTransparency = 0
+        	feedbackTween = tween(feedback, {TextTransparency = 1}, 2.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        end
+        local VALID_KEYS = {}
+        if ValidKeys then
+            for _, ValidKey in pairs(ValidKeys) do
+                VALID_KEYS[ValidKey] = true
+            end
+        end
+        local function shakeInvalid()
+        	local originalPos = keyBoxHolder.Position
+        	local seq = {0.01, -0.01, 0.008, -0.008, 0}
+        	local delay = 0
+        	for _, offset in ipairs(seq) do
+        		task.delay(delay, function()
+        			tween(keyBoxHolder, {Position = originalPos + UDim2.fromScale(offset, 0)}, 0.05)
+        		end)
+        		delay += 0.05
+        	end
+        end
+        local function submitKey()
+        	local rawKey = keyBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+        	if rawKey == "" then
+        		showFeedback("Please enter a key", COLORS.Error)
+        		tween(keyBoxStroke, {Color = COLORS.Error}, 0.12)
+        		task.delay(0.4, function()
+        			tween(keyBoxStroke, {Color = COLORS.Stroke}, 0.3)
+        		end)
+        		shakeInvalid()
+        		return
+        	end
+        	submitButton.Text = "CHECKING..."
+        	submitButton.AutoButtonColor = false
+        	task.wait(0.4) -- simulate validation delay; replace with real check
+        	if VALID_KEYS[rawKey] or not ValidKeys then
+        		showFeedback("Key accepted! Unlocking...", COLORS.Success)
+        		tween(keyBoxStroke, {Color = COLORS.Success}, 0.15)
+        		submitButton.Text = "SUCCESS"
+        		tween(submitButton, {BackgroundColor3 = COLORS.Success}, 0.2)
+        		task.wait(0.9)
+        		local exitTween = tween(box, {Size = UDim2.fromScale(0, 0)}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+        		table.insert(Connections, exitTween.Completed:Once(function()
+        			screenGui:Destroy()
+        			Succeed = true
+        		end))
+        	else
+        		showFeedback("Invalid key. Please try again", COLORS.Error)
+        		tween(keyBoxStroke, {Color = COLORS.Error}, 0.15)
+        		submitButton.Text = "SUBMIT"
+        		submitButton.AutoButtonColor = false
+        		shakeInvalid()
+        		task.delay(0.6, function()
+        			tween(keyBoxStroke, {Color = COLORS.Stroke}, 0.3)
+        		end)
+        	end
+        end
+        table.insert(Connections, submitButton.MouseButton1Click:Connect(submitKey))
+        table.insert(Connections, keyBox.FocusLost:Connect(function(enterPressed)
+        	if enterPressed then
+        		submitKey()
+        	end
+        end))
+        table.insert(Connections, getKeyButton.MouseButton1Click:Connect(function()
+        	showFeedback("Copied key page...", COLORS.SubText)
+        	setclipboard(KeyLink)
+        end))
+        table.insert(Connections, discordButton.MouseButton1Click:Connect(function()
+        	showFeedback("Copied Discord...", COLORS.SubText)
+        	setclipboard(KeyDiscord)
+        end))
+        box.Size = UDim2.fromScale(0, 0)
+        panel.BackgroundTransparency = 1
+        content.Position = UDim2.fromScale(0.5, 0.55)
+        content.BackgroundTransparency = 1
+        task.spawn(function()
+        	updateBox()
+        	local targetSize = box.Size
+        	box.Size = UDim2.fromScale(0, 0)
+        	tween(box, {Size = targetSize}, 0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        	tween(panel, {BackgroundTransparency = 0}, 0.25)
+        	tween(content, {Position = UDim2.fromScale(0.5, 0.5)}, 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        end)
+    end)
+    repeat task.wait() until Succeed
+    for _, Connection in pairs(Connections) do
+        if typeof(Connection) == "RBXScriptConnection" then
+            Connection:Disconnect()
+        end
+    end
+end
+return KeySystem
