@@ -6,6 +6,8 @@ Script.Cache.Config = {
 }
 Script.File.Save("FriedPotato/DeadRails/config.json", Script.Cache.Config)
 loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Deadrails/Main.lua"))()
+local UIS = game:GetService("UserInputService")
+if not (UIS.TouchEnabled and not UIS.KeyboardEnabled) then return end
 local ToggleButton = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/Toggler.lua"))()
 local PlayerGui = game:GetService("Players").LocalPlayer.PlayerGui
 local toggle = ToggleButton.MakeToggle("Friedpotato", function()
