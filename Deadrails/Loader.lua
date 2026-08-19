@@ -1,3 +1,10 @@
+if game.PlaceId ~= 70876832253163 then
+    local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/Notification%20System"))()
+    Notify.Error("Friedpotato Deadrails", "Wrong game detected! Please enter a Deadrails lobby and execute again.", 6)
+    return
+end
+
+
 local Script = {}
 Script.Cache = {}
 Script.File = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/File%20System.lua"))()
