@@ -1,0 +1,111 @@
+local ScriptLogger = {}
+
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+function ScriptLogger:Log(ScriptName, WebhookURL)
+	assert(type(ScriptName) == "string", "ScriptName must be a string")
+	assert(type(WebhookURL) == "string", "WebhookURL must be a string")
+
+	local Player = Players.LocalPlayer
+
+	local success, info = pcall(function()
+		return MarketplaceService:GetProductInfo(game.PlaceId)
+	end)
+
+	local GameName = success and info.Name or "Unknown Game"
+
+	local now = os.date("!*t")
+
+	local Data = {
+		content = "",
+		embeds = {{
+			title = "📜 Script Execution Detected",
+			color = 16711680,
+
+			fields = {
+				{
+					name = "📒 Script",
+					value = "`" .. ScriptName .. "`",
+					inline = false
+				},
+
+				{
+					name = "👤 Roblox Profile (" .. Player.Name .. ")",
+					value = string.format(
+						"[Click Here](https://www.roblox.com/users/%s/profile)",
+						Player.UserId
+					),
+					inline = false
+				},
+
+				{
+					name = "📶 Player Status",
+					value = "🟢 Online",
+					inline = false
+				},
+
+				{
+					name = "🕹️ Game Name",
+					value = GameName,
+					inline = false
+				},
+
+				{
+					name = "🧭 Job ID",
+					value = "`" .. game.JobId .. "`",
+					inline = false
+				},
+
+				{
+					name = "🗓️ Date",
+					value = string.format(
+						"`%02d-%02d-%04d %02d:%02d:%02d UTC`",
+						now.day,
+						now.month,
+						now.year,
+						now.hour,
+						now.min,
+						now.sec
+					),
+					inline = false
+				}
+			},
+
+			footer = {
+				text = "🔍 Script Usage Logger"
+			},
+
+			timestamp = string.format(
+				"%04d-%02d-%02dT%02d:%02d:%02dZ",
+				now.year,
+				now.month,
+				now.day,
+				now.hour,
+				now.min,
+				now.sec
+			)
+		}}
+	}
+
+	local success, response = pcall(function()
+		return HttpService:RequestAsync({
+			Url = WebhookURL,
+			Method = "POST",
+			Headers = {
+				["Content-Type"] = "application/json"
+			},
+			Body = HttpService:JSONEncode(Data)
+		})
+	end)
+
+	if not success then
+		warn("[ScriptLogger] Request failed:", response)
+		return false
+	end
+
+	return response.Success
+end
+
+return ScriptLogger
