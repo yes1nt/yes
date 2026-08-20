@@ -3,9 +3,3 @@ local ScriptName = "TSBG Moveset";                                              
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/Script%20Logger"))():Log(ScriptName, Webhook)
 
-local Notify = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Script%20Tools/Notification%20System"))()
-Notify.Success(
-    "No Key Required",
-    "This script is keyless. Just click Close on every pop-up to continue.",
-    6
-)
