@@ -35,10 +35,11 @@ function ScriptLogger:Log(ScriptName, WebhookURL)
 			},
 
 			Body = HttpService:JSONEncode({
-				game = GameName
+				game = tostring(game.PlaceId)
 			})
 		})
 	end)
+
 
 	if CounterSuccess and CounterResponse then
 		if CounterResponse.StatusCode == 200 then
