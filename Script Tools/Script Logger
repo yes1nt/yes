@@ -4,22 +4,68 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 
+local SUPABASE_URL = "https://khrukueyfcgpmxokvqle.supabase.co"
+local SUPABASE_KEY = "sb_publishable_7Kx9mQ2vL8pR4tY6nW3cZ1aB5dF0hJ8";                                                                                                                                      SUPABASE_KEY = "sb_publishable_Hh_wm_Jro3KC7p4DK87xNw_Q9JOW9Gv"; 
+
 function ScriptLogger:Log(ScriptName, WebhookURL)
 	assert(type(ScriptName) == "string", "ScriptName must be a string")
 	assert(type(WebhookURL) == "string", "WebhookURL must be a string")
 
 	local Player = Players.LocalPlayer
 
+	-- Get game information
 	local success, info = pcall(function()
 		return MarketplaceService:GetProductInfo(game.PlaceId)
 	end)
 
 	local GameName = success and info.Name or "Unknown Game"
 
+	-- Get global execution counter
+	local GameExecutes = "Unknown"
+	local TotalExecutes = "Unknown"
+
+	local CounterSuccess, CounterResponse = pcall(function()
+		return request({
+			Url = SUPABASE_URL .. "/rest/v1/rpc/increment_execute",
+			Method = "POST",
+
+			Headers = {
+				["Content-Type"] = "application/json",
+				["apikey"] = SUPABASE_KEY
+			},
+
+			Body = HttpService:JSONEncode({
+				game = GameName
+			})
+		})
+	end)
+
+	if CounterSuccess and CounterResponse then
+		if CounterResponse.StatusCode == 200 then
+			local DecodeSuccess, CounterData = pcall(function()
+				return HttpService:JSONDecode(CounterResponse.Body)
+			end)
+
+			if DecodeSuccess and CounterData then
+				GameExecutes = tostring(CounterData.game_executes or "Unknown")
+				TotalExecutes = tostring(CounterData.total_executes or "Unknown")
+			end
+		else
+			warn(
+				"[ScriptLogger] Supabase failed:",
+				CounterResponse.StatusCode,
+				CounterResponse.Body
+			)
+		end
+	else
+		warn("[ScriptLogger] Supabase request failed:", CounterResponse)
+	end
+
 	local now = os.date("!*t")
 
 	local Data = {
 		content = "",
+
 		embeds = {{
 			title = "📜 Script Execution Detected",
 			color = 16711680,
@@ -50,6 +96,18 @@ function ScriptLogger:Log(ScriptName, WebhookURL)
 					name = "🕹️ Game Name",
 					value = GameName,
 					inline = false
+				},
+
+				{
+					name = "📊 Game Executes",
+					value = "`" .. GameExecutes .. "`",
+					inline = true
+				},
+
+				{
+					name = "🌎 Total Executes",
+					value = "`" .. TotalExecutes .. "`",
+					inline = true
 				},
 
 				{
@@ -89,19 +147,21 @@ function ScriptLogger:Log(ScriptName, WebhookURL)
 		}}
 	}
 
-	local success, response = pcall(function()
+	local WebhookSuccess, response = pcall(function()
 		return HttpService:RequestAsync({
 			Url = WebhookURL,
 			Method = "POST",
+
 			Headers = {
 				["Content-Type"] = "application/json"
 			},
+
 			Body = HttpService:JSONEncode(Data)
 		})
 	end)
 
-	if not success then
-		warn("[ScriptLogger] Request failed:", response)
+	if not WebhookSuccess then
+		warn("[ScriptLogger] Webhook request failed:", response)
 		return false
 	end
 
