@@ -33,14 +33,21 @@ local function LootLabsKeySystemModule()
     do
         local Cache
         task.spawn(function()
-            local data, err = requestJSON("POST", API .. "/session/create", {user_id = Player.UserId, key_type = "universal"})
-            if not data then
-                Cache = {nil, err}
+            for i = 1, 10 do
+                local data, err = requestJSON("POST", API .. "/session/create", {user_id = Player.UserId, key_type = "universal"})
+                if not data then
+                    Cache = {err, nil, "N/A"}
+                    task.wait(3)
+                    continue
+                end
+                if not data.lootlabs_url then
+                    Cache = {data.error or "lootlabs_url_missing", nil, "N/A"}
+                    task.wait(3)
+                    continue
+                end
+                Cache = {data.lootlabs_url, nil, data.session_id}
+                break
             end
-            if not data.lootlabs_url then
-                Cache = {nil, data.error or "lootlabs_url_missing"}
-            end
-            Cache = {data.lootlabs_url, nil, data.session_id}
         end)
         function KeySystem.GetKeyLink()
             while not Cache do
@@ -49,7 +56,7 @@ local function LootLabsKeySystemModule()
             return Cache[1], Cache[2], Cache[3]
         end
     end
-    function KeySystem.GetSessionStatus(sessionId)
+    function KeySystem:GetSessionStatus(sessionId)
         if type(sessionId) ~= "string" or sessionId == "" then
             return nil, "invalid_session_id"
         end
@@ -59,7 +66,7 @@ local function LootLabsKeySystemModule()
         end
         return data, nil
     end
-    function KeySystem.GetKey(sessionId)
+    function KeySystem:GetKey(sessionId)
         local data, err = self:GetSessionStatus(sessionId)
         if not data then
             return nil, err
@@ -72,18 +79,29 @@ local function LootLabsKeySystemModule()
         end
         return data.key, nil, data
     end
-    function KeySystem.VerifyKey(key)
-        if type(key) ~= "string" or key == "" then
-            return false, "invalid_key"
+    do
+        local Clicked = 0
+        function KeySystem.VerifyKey(key)
+            if Clicked > 5 then
+                return false, "wait_a_moment"
+            end
+            Clicked = Clicked + 1
+            task.spawn(function()
+                task.wait(5)
+                Clicked = Clicked - 1
+            end)
+            if type(key) ~= "string" or key == "" then
+                return false, "invalid_key"
+            end
+            local data, err = requestJSON("POST", API .. "/key/validate", {user_id = Player.UserId, key = key})
+            if not data then
+                return false, err
+            end
+            if data.valid == true then
+                return true, nil, data
+            end
+            return false, "invalid_key", data
         end
-        local data, err = requestJSON("POST", API .. "/key/validate", {user_id = Player.UserId, key = key})
-        if not data then
-            return false, err
-        end
-        if data.valid == true then
-            return true, nil, data
-        end
-        return false, "invalid_key", data
     end
     return KeySystem
 end
