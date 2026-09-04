@@ -1,0 +1,90 @@
+local function LootLabsKeySystemModule()
+    local Players = game:GetService("Players")
+    local HttpService = game:GetService("HttpService")
+    local Player = Players.LocalPlayer
+    local API = "https://mivmpwnukokdzmacquzm.supabase.co/functions/v1/super-action"
+    local KeySystem = {}
+    local function requestJSON(method, url, body)
+        local requestBody = body and HttpService:JSONEncode(body) or nil
+        local ok, response = pcall(function()
+            return request({Url = url, Method = method, Headers = {["Content-Type"] = "application/json"}, Body = requestBody})
+        end)
+        if not ok then
+            return nil, "request_failed"
+        end
+        if not response then
+            return nil, "no_response"
+        end
+        local bodyText = response.Body
+        if not bodyText or bodyText == "" then
+            return nil, "empty_response"
+        end
+        local jsonOK, data = pcall(function()
+            return HttpService:JSONDecode(bodyText)
+        end)
+        if not jsonOK then
+            return nil, "invalid_json"
+        end
+        if response.StatusCode < 200 or response.StatusCode >= 300 then
+            return data, data.error or ("http_" .. tostring(response.StatusCode))
+        end
+        return data, nil
+    end
+    do
+        local Cache
+        task.spawn(function()
+            local data, err = requestJSON("POST", API .. "/session/create", {user_id = Player.UserId, key_type = "universal"})
+            if not data then
+                Cache = {nil, err}
+            end
+            if not data.lootlabs_url then
+                Cache = {nil, data.error or "lootlabs_url_missing"}
+            end
+            Cache = {data.lootlabs_url, nil, data.session_id}
+        end)
+        function KeySystem:GetKeyLink()
+            while not Cache do
+                task.wait()
+            end
+            return Cache[1], Cache[2], Cache[3]
+        end
+    end
+    function KeySystem:GetSessionStatus(sessionId)
+        if type(sessionId) ~= "string" or sessionId == "" then
+            return nil, "invalid_session_id"
+        end
+        local data, err = requestJSON("GET", API .. "/session/status?session_id=" .. HttpService:UrlEncode(sessionId))
+        if not data then
+            return nil, err
+        end
+        return data, nil
+    end
+    function KeySystem:GetKey(sessionId)
+        local data, err = self:GetSessionStatus(sessionId)
+        if not data then
+            return nil, err
+        end
+        if data.status ~= "completed" then
+            return nil, data.status or "not_completed"
+        end
+        if not data.key then
+            return nil, "key_missing"
+        end
+        return data.key, nil, data
+    end
+    function KeySystem:VerifyKey(key)
+        if type(key) ~= "string" or key == "" then
+            return false, "invalid_key"
+        end
+        local data, err = requestJSON("POST", API .. "/key/validate", {user_id = Player.UserId, key = key})
+        if not data then
+            return false, err
+        end
+        if data.valid == true then
+            return true, nil, data
+        end
+        return false, "invalid_key", data
+    end
+    return KeySystem
+end
+return LootLabsKeySystemModule()
