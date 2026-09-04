@@ -423,12 +423,12 @@ local function KeySystem(Title, Caption, COLORS, KeyLink, KeyDiscord, KeyValidat
         	end
         end))
         table.insert(Connections, getKeyButton.MouseButton1Click:Connect(function()
-            if type(Keylink) == "string" then
+            if type(KeyLink) == "string" then
                 setclipboard(KeyLink)
                 showFeedback("Copied key page...", COLORS.SubText)
-            elseif typeof(Keylink) == "function" then
+            elseif typeof(KeyLink) == "function" then
                 showFeedback("Please wait...", COLORS.SubText)
-                setclipboard(Keylink())
+                setclipboard(KeyLink())
                 showFeedback("Copied key page...", COLORS.SubText)
             end
         end))
