@@ -42,14 +42,14 @@ local function LootLabsKeySystemModule()
             end
             Cache = {data.lootlabs_url, nil, data.session_id}
         end)
-        function KeySystem:GetKeyLink()
+        function KeySystem.GetKeyLink()
             while not Cache do
                 task.wait()
             end
             return Cache[1], Cache[2], Cache[3]
         end
     end
-    function KeySystem:GetSessionStatus(sessionId)
+    function KeySystem.GetSessionStatus(sessionId)
         if type(sessionId) ~= "string" or sessionId == "" then
             return nil, "invalid_session_id"
         end
@@ -59,7 +59,7 @@ local function LootLabsKeySystemModule()
         end
         return data, nil
     end
-    function KeySystem:GetKey(sessionId)
+    function KeySystem.GetKey(sessionId)
         local data, err = self:GetSessionStatus(sessionId)
         if not data then
             return nil, err
@@ -72,7 +72,7 @@ local function LootLabsKeySystemModule()
         end
         return data.key, nil, data
     end
-    function KeySystem:VerifyKey(key)
+    function KeySystem.VerifyKey(key)
         if type(key) ~= "string" or key == "" then
             return false, "invalid_key"
         end
