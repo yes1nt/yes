@@ -34,7 +34,7 @@ local function LootLabsKeySystemModule()
         local Cache
         task.spawn(function()
             for i = 1, 10 do
-                local data, err = requestJSON("POST", API .. "/session/create", {user_id = Player.UserId, key_type = "universal"})
+                local data, err = requestJSON("POST", API .. "/session/create", {web_user_id = Player.UserId})
                 if not data then
                     Cache = {err, nil, "N/A"}
                     task.wait(3)
