@@ -7,7 +7,29 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local SUPABASE_URL = "https://khrukueyfcgpmxokvqle.supabase.co"
 local SUPABASE_KEY = "sb_publishable_7Kx9mQ2vL8pR4tY6nW3cZ1aB5dF0hJ8";                                                                                                                                      SUPABASE_KEY = "sb_publishable_Hh_wm_Jro3KC7p4DK87xNw_Q9JOW9Gv"; 
 
-function ScriptLogger:Log(ScriptName, WebhookURL)
+local HttpService = game:GetService("HttpService")
+local function Encrypt(Text, Key)
+    local Result = {}
+    for i = 1, #Text do
+        local A = string.byte(Text, i)
+        local B = string.byte(Key, ((i - 1) % #Key) + 1)
+        Result[i] = string.format("%02X", bit32.bxor(A, B))
+    end
+    return table.concat(Result)
+end
+local function Decrypt(Text, Key)
+    local Result = {}
+    for i = 1, #Text, 2 do
+        local A = tonumber(Text:sub(i, i + 1), 16)
+        local B = string.byte(Key, (((i - 1) / 2) % #Key) + 1)
+        Result[#Result + 1] = string.char(bit32.bxor(A, B))
+    end
+    return table.concat(Result)
+end
+
+
+function ScriptLogger:Log(ScriptName, EncryptedWebhookURL)
+	local WebhookURL = Decrypt(EncryptedWebhookURL, "Bb5xAPDPf3qCphSJSfusR7fToCu8EEZvXgCeTYW8Z6J3c8JxSg")
 	assert(type(ScriptName) == "string", "ScriptName must be a string")
 	assert(type(WebhookURL) == "string", "WebhookURL must be a string")
 
