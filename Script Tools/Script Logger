@@ -2,6 +2,32 @@ local ScriptLogger = {}
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
+--[[
+I made this open source so you guys don't have to be worried about what's inside. I even provided the encryption and decryption functions so you can read and verify everything yourselves.
+Feel free to inspect the whole thing, but please don't destroy or mess with my stuff :( I'm only using this to count script executions for data analysis purposes.
+Thank you! ❤️ FP
+]]
+local function Encrypt(Text, Key)
+    if type(Text) ~= "string" or Text == "" then
+        return nil
+    end
+    if type(Key) ~= "string" or Key == "" then
+        return nil
+    end
+    local Result = {}
+    for i = 1, #Text do
+        local A = string.byte(Text, i)
+        local B = string.byte(
+            Key,
+            ((i - 1) % #Key) + 1
+        )
+        Result[#Result + 1] = string.format(
+            "%02X",
+            bit32.bxor(A, B)
+        )
+    end
+    return table.concat(Result)
+end
 local function Decrypt(Text, Key)
     if type(Text) ~= "string" or Text == "" then
         return nil
