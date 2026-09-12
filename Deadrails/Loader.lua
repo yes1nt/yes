@@ -9,6 +9,4 @@ Script.Cache.Config = {
     AutoFarming = false
 }
 Script.File.Save("FriedPotato/DeadRails/config.json", Script.Cache.Config)
-local MainAPI = loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/friedpotato/refs/heads/main/API/MAIN%20API.lua"))()
-local Main = MainAPI:LoadDeadrailsAPI()
-Main:Loader()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Deadrails/Main.lua"))()
